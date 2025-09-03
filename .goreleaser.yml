@@ -1,0 +1,259 @@
+# GoReleaser configuration for artifact-cli
+# https://goreleaser.com/
+
+# Project name and version
+project_name: artifact-cli
+
+# Build configuration
+builds:
+  - id: artifact-cli
+    binary: artifact-cli
+    main: ./cmd/root.go
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    goarm:
+      - 6
+      - 7
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+# Archive configuration
+archives:
+  - id: default
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE*
+      - CHANGELOG*
+      - docs/*
+    format: tar.gz
+
+# Checksums
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+  algorithm: sha256
+
+# Snapcraft (Snap packages)
+snapcrafts:
+  - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}.snap"
+    summary: "A CLI tool to package local folders as OCI artifacts"
+    description: |
+      A command-line interface to package local folders, push them as OCI artifacts 
+      to a registry, and pull them back down with support for multiple artifact formats.
+      
+      Features:
+      - Multi-format support (OCI, imgpkg, educates)
+      - Cross-platform building and pushing
+      - Smart fallback strategies for pulling
+      - Compatibility with existing OCI tools
+    grade: stable
+    confinement: strict
+    base: core20
+    license: MIT
+    build_base: core20
+    apps:
+      artifact-cli:
+        command: artifact-cli
+        plugs:
+          - home
+          - removable-media
+          - network
+    parts:
+      artifact-cli:
+        plugin: go
+        source: .
+        go-importpath: educates-artifact-cli
+        build-packages:
+          - gcc
+          - git
+
+# Homebrew (macOS)
+brews:
+  - name: artifact-cli
+    description: "A CLI tool to package local folders as OCI artifacts"
+    homepage: "https://github.com/jorgemoralespou/educates-artifact-cli"
+    license: "MIT"
+    skip_upload: auto
+    test: |
+      system "#{bin}/artifact-cli --version"
+    install: |
+      bin.install "artifact-cli"
+
+# Scoop (Windows)
+scoops:
+  - name: artifact-cli
+    description: "A CLI tool to package local folders as OCI artifacts"
+    homepage: "https://github.com/jorgemoralespou/educates-artifact-cli"
+    license: "MIT"
+    skip_upload: auto
+    persist:
+      - config
+
+# Docker images
+dockers:
+  - id: artifact-cli
+    image_templates:
+      - "ghcr.io/jorgemoralespou/artifact-cli:{{ .Version }}"
+      - "ghcr.io/jorgemoralespou/artifact-cli:latest"
+    dockerfile: Dockerfile
+    use: buildx
+    build_flag_templates:
+      - --platform=linux/amd64
+      - --platform=linux/arm64
+    extra_files:
+      - README.md
+
+# GitHub release configuration
+release:
+  github:
+    owner: jorgemoralespou
+    name: educates-artifact-cli
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## Changelog
+    
+    See the [CHANGELOG.md](CHANGELOG.md) file for details.
+  footer: |
+    ## Installation
+    
+    ### Using GoReleaser (recommended)
+    
+    Download the latest release from the [releases page](https://github.com/jorgemoralespou/educates-artifact-cli/releases).
+    
+    ### Using Homebrew (macOS)
+    
+    ```bash
+    brew install jorgemoralespou/tap/artifact-cli
+    ```
+    
+    ### Using Scoop (Windows)
+    
+    ```bash
+    scoop bucket add jorgemoralespou https://github.com/jorgemoralespou/scoop-bucket.git
+    scoop install artifact-cli
+    ```
+    
+    ### Using Snap (Linux)
+    
+    ```bash
+    snap install artifact-cli
+    ```
+
+# Changelog configuration
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^build:'
+      - '^chore:'
+
+# Milestone configuration
+milestones:
+  - repo: jorgemoralespou/educates-artifact-cli
+    close: true
+
+# Before hooks
+before:
+  hooks:
+    - go mod tidy
+    - go mod verify
+    - go vet ./...
+    - go test ./...
+
+# After hooks
+after:
+  hooks:
+    - echo "Release {{ .Version }} completed successfully!"
+
+# Metadata
+metadata:
+  mod_timestamp: "{{ .CommitTimestamp }}"
+
+# Announcements
+announce:
+  skip: "{{gt .Patch 0}}"
+  twitter:
+    enabled: false
+  reddit:
+    enabled: false
+  linkedin:
+    enabled: false
+  mastodon:
+    enabled: false
+  slack:
+    enabled: false
+  discord:
+    enabled: false
+  teams:
+    enabled: false
+  smtp:
+    enabled: false
+  telegram:
+    enabled: false
+  mattermost:
+    enabled: false
+  rocketchat:
+    enabled: false
+  matrix:
+    enabled: false
+  googlechat:
+    enabled: false
+  webhook:
+    enabled: false
+
+# Blobs (for additional files)
+blobs:
+  - provider: github
+    ids:
+      - artifact-cli
+    folder: "{{ .ProjectName }}_{{ .Version }}"
+    globs:
+      - "*.tar.gz"
+      - "*.zip"
+      - "*.deb"
+      - "*.rpm"
+      - "*.snap"
+
+# Universal binaries (for Apple Silicon)
+universal_binaries:
+  - replace: true
+    goos:
+      - darwin
+
+# Source configuration
+source:
+  enabled: true
+  name_template: "{{ .ProjectName }}_{{ .Version }}_src"
+  format: tar.gz
+  files:
+    - "*.go"
+    - "go.mod"
+    - "go.sum"
+    - "README.md"
+    - "LICENSE*"
+    - "CHANGELOG*"
+    - "docs/**/*"
+    - "specs/**/*"
+    - "Taskfile.yml"
+    - ".goreleaser.yml"
+    - "Dockerfile*"

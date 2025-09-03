@@ -1,0 +1,119 @@
+version: '3'
+
+vars:
+  BINARY_NAME: artifact-cli
+  BUILD_DIR: ./bin
+  MAIN_FILE: cmd/root.go
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  build:
+    desc: Build the artifact-cli binary
+    cmds:
+      - mkdir -p {{.BUILD_DIR}}
+      - go build -o {{.BUILD_DIR}}/{{.BINARY_NAME}} {{.MAIN_FILE}}
+    sources:
+      - "{{.MAIN_FILE}}"
+      - "go.mod"
+      - "go.sum"
+    generates:
+      - "{{.BUILD_DIR}}/{{.BINARY_NAME}}"
+
+  run:
+    desc: Run the artifact-cli binary
+    deps: [build]
+    cmds:
+      - ./bin/artifact-cli --help
+
+  dev:
+    desc: Run in development mode
+    cmds:
+      - go run cmd/root.go --help
+
+  test:
+    desc: Run tests
+    cmds:
+      - go test ./...
+
+  lint:
+    desc: Run linter
+    cmds:
+      - go vet ./...
+      - go fmt ./...
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - rm -rf ./bin
+
+  install:
+    desc: Install the binary to GOPATH/bin
+    deps: [build]
+    cmds:
+      - go install
+
+  build-all:
+    desc: Build the binary for multiple platforms
+    cmds:
+      - mkdir -p ./bin
+      - GOOS=linux GOARCH=amd64 go build -o ./bin/artifact-cli-linux-amd64 cmd/root.go
+      - GOOS=linux GOARCH=arm64 go build -o ./bin/artifact-cli-linux-arm64 cmd/root.go
+      - GOOS=darwin GOARCH=amd64 go build -o ./bin/artifact-cli-darwin-amd64 cmd/root.go
+      - GOOS=darwin GOARCH=arm64 go build -o ./bin/artifact-cli-darwin-arm64 cmd/root.go
+      - GOOS=windows GOARCH=amd64 go build -o ./bin/artifact-cli-windows-amd64.exe cmd/root.go
+
+  run-push:
+    desc: Show push command example
+    deps: [build]
+    cmds:
+      - ./bin/artifact-cli push --help
+
+  run-pull:
+    desc: Show pull command example
+    deps: [build]
+    cmds:
+      - ./bin/artifact-cli pull --help
+
+  example-push:
+    desc: Example workflow to push my-app folder (no platform selector)
+    deps: [build]
+    cmds:
+      - ./bin/artifact-cli push localhost:5001/my-app:latest -f ./test/my-app
+
+  example-push-multi-platform:
+    desc: Example workflow to push my-app folder
+    deps: [build]
+    cmds:
+      - ./bin/artifact-cli push localhost:5001/my-app:latest -f ./test/my-app -p linux/amd64,linux/arm64
+
+  example-pull:
+    desc: Example workflow to pull and restore my-app (with fallback strategies)
+    deps: [build]
+    cmds:
+      - ./bin/artifact-cli pull localhost:5001/my-app:latest -o ./test/output-app
+
+  example-pull-platform:
+    desc: Example workflow to pull specific platform
+    deps: [build]
+    cmds:
+      - ./bin/artifact-cli pull localhost:5001/my-app:latest -o ./test/output-app -p linux/amd64
+
+  check:
+    desc: Run all checks (lint, test, build)
+    deps: [lint, test, build]
+    cmds:
+      - echo "All checks completed successfully!"
+
+  release:
+    desc: Create a new release (requires git tag)
+    cmds:
+      - ./scripts/release.sh
+
+  release-dry-run:
+    desc: Test GoReleaser configuration without creating a release
+    cmds:
+      - goreleaser release --snapshot --clean --skip-publish
