@@ -14,13 +14,13 @@ func NewEducatesImageArtifact(repoRef string, pushPlatforms []string, pullPlatfo
 }
 
 func (a *EducatesImageArtifact) Push() error {
-	fmt.Println("Pushing educates artifact...")
+
 	fmt.Println("Opps, not implemented yet")
 	return nil
 }
 
 func (a *EducatesImageArtifact) Pull() error {
-	fmt.Println("Pulling educates artifact...")
+	fmt.Println("Educates Image Artifact Pull")
 	fmt.Println("Opps, not implemented yet")
 	return nil
 }

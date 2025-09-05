@@ -1,0 +1,38 @@
+---
+alwaysApply: true
+description: Project structure and architecture guide
+---
+
+# Artifact CLI Project Structure
+
+This is a Go-based CLI tool for packaging and managing OCI artifacts with support for multiple formats.
+
+## Core Architecture
+
+- **Entry Point**: [cmd/root.go](mdc:cmd/root.go) - Main application entry point
+- **Commands**: [pkg/cmd/](mdc:pkg/cmd/) - Push and pull command implementations
+- **Artifact Types**: [pkg/artifact/](mdc:pkg/artifact/) - Different artifact format implementations
+  - [pkg/artifact/oci/](mdc:pkg/artifact/oci/) - OCI format implementation
+  - [pkg/artifact/imgpkg/](mdc:pkg/artifact/imgpkg/) - Imgpkg format implementation
+  - [pkg/artifact/educates/](mdc:pkg/artifact/educates/) - Educates format implementation
+- **Utilities**: [pkg/utils/](mdc:pkg/utils/) - Shared utility functions
+- **Constants**: [pkg/artifact/constants.go](mdc:pkg/artifact/constants.go) - Media types and constants
+
+## Key Files
+
+- [Taskfile.yml](mdc:Taskfile.yml) - Build automation and task runner
+- [.goreleaser.yml](mdc:.goreleaser.yml) - Release automation configuration
+- [Dockerfile](mdc:Dockerfile) - Container image build
+- [README.md](mdc:README.md) - Project documentation
+
+## Artifact Interface
+
+All artifact types implement the `artifact.Artifact` interface with `Push()` and `Pull()` methods. The CLI uses a factory pattern to create the appropriate artifact type based on the `-a` flag.
+
+## Build System
+
+Use `task` commands for development:
+- `task build` - Build the binary
+- `task test` - Run tests
+- `task lint` - Run linter
+- `task release` - Create a release

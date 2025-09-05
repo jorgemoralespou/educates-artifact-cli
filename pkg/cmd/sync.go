@@ -1,0 +1,65 @@
+package cmd
+
+import (
+	"fmt"
+
+	"github.com/spf13/cobra"
+
+	"educates-artifact-cli/pkg/sync"
+)
+
+type SyncCmdOpts struct {
+	ConfigFile string
+}
+
+// NewSyncCmd creates the 'sync' command
+func NewSyncCmd() *cobra.Command {
+	var opts SyncCmdOpts
+
+	cmd := &cobra.Command{
+		Use:   "sync -c <config.yaml>",
+		Short: "Sync artifacts from OCI registries to local folders based on configuration",
+		Long: `Sync artifacts from OCI registries to local folders based on a configuration YAML file.
+The configuration file defines which artifacts to pull, where to extract them,
+and which files to include or exclude.`,
+		Example: `  # Sync artifacts using configuration file
+  artifact-cli sync -c config.yaml
+
+  # Verbose sync
+  artifact-cli sync -c config.yaml -v
+
+  # Example config.yaml structure:
+  spec:
+    dest: ./workshops
+    artifacts:
+      - image:
+          url: ghcr.io/my-org/workshop-files:v1.0.0
+        includePaths:
+          - /workshop/**
+          - /exercises/**
+        excludePaths:
+          - /README.md`,
+		Args:         cobra.NoArgs,
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var config sync.SyncConfig
+
+			// Load and parse configuration file
+			if err := sync.LoadSyncConfig(&config, opts.ConfigFile); err != nil {
+				return fmt.Errorf("failed to load configuration: %w", err)
+			}
+
+			// Validate configuration
+			if err := sync.ValidateSyncConfig(&config); err != nil {
+				return fmt.Errorf("invalid configuration: %w", err)
+			}
+
+			return sync.Sync(config)
+		},
+	}
+
+	cmd.Flags().StringVarP(&opts.ConfigFile, "config", "c", "", "Path to the configuration YAML file (required)")
+	_ = cmd.MarkFlagRequired("config")
+
+	return cmd
+}

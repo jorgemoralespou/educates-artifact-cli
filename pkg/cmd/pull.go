@@ -32,7 +32,10 @@ func NewPullCmd() *cobra.Command {
   artifact-cli pull ghcr.io/my-user/my-app:1.0.1 -o ./restored-app
 
   # Pull a specific platform
-  artifact-cli pull ghcr.io/my-user/my-app:1.0.1 -o ./restored-app -p linux/amd64`,
+  artifact-cli pull ghcr.io/my-user/my-app:1.0.1 -o ./restored-app -p linux/amd64
+
+  # Verbose pull
+  artifact-cli pull ghcr.io/my-user/my-app:1.0.1 -o ./restored-app -v`,
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -50,7 +53,7 @@ func NewPullCmd() *cobra.Command {
 
 			// Do some validation
 			if opts.ArtifactType == ArtifactTypeImgpkg && len(platforms) != 0 {
-				fmt.Println("when pushing an Imgpkg artifact, platforms will be ignored")
+				utils.VerbosePrintln("when pushing an Imgpkg artifact, platforms will be ignored")
 				platforms = nil
 			}
 

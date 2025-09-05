@@ -1,0 +1,111 @@
+---
+globs: Taskfile.yml,.goreleaser.yml,Dockerfile,scripts/*.sh
+description: Build and release automation
+---
+
+# Build and Release Automation
+
+## Task Runner (Taskfile.yml)
+
+Use `task` for all build operations:
+
+### Common Tasks
+- `task build` - Build the binary
+- `task test` - Run tests
+- `task lint` - Run linter
+- `task clean` - Clean build artifacts
+- `task check` - Run all checks
+- `task release` - Create a release
+- `task release-dry-run` - Test release locally
+
+### Build Configuration
+- Binary name: `artifact-cli`
+- Build directory: `./bin`
+- Main file: `cmd/root.go`
+- Cross-compilation support for multiple platforms
+
+## GoReleaser (.goreleaser.yml)
+
+Automated release process with:
+- Multi-platform builds (Linux, macOS, Windows)
+- Package manager support (Homebrew, Scoop, Snap)
+- Docker image builds
+- GitHub releases
+- Checksums and signatures
+
+### Release Process
+1. Create git tag: `git tag v1.0.0`
+2. Push tag: `git push origin v1.0.0`
+3. GitHub Actions builds and publishes release
+
+## Docker (Dockerfile)
+
+Multi-stage build:
+- Builder stage: Go compilation
+- Final stage: Minimal scratch image
+- Static binary compilation
+- CA certificates and timezone data included
+
+## Scripts
+
+### Release Script (scripts/release.sh)
+- Interactive release creation
+- Version validation
+- Changelog updates
+- Git tag creation
+- Optional local GoReleaser testing
+
+### Install Script (scripts/install.sh)
+- Automatic platform detection
+- Latest release download
+- Binary installation
+- Usage examples
+
+## GitHub Actions
+
+### CI Workflow (.github/workflows/ci.yml)
+- Runs on every push/PR
+- Cross-platform testing
+- Security scanning
+- Code quality checks
+
+### Release Workflow (.github/workflows/release.yml)
+- Triggers on version tags
+- GoReleaser execution
+- Multi-platform builds
+- Artifact publishing
+
+## Version Management
+
+- Use semantic versioning (v1.0.0)
+- Update CHANGELOG.md for each release
+- Tag releases in git
+- Use GoReleaser for version management
+
+## Package Managers
+
+### Homebrew
+- Formula in `your-org/homebrew-tap`
+- Automatic updates via GoReleaser
+- macOS package management
+
+### Scoop
+- Manifest in `your-org/scoop-bucket`
+- Windows package management
+- Automatic updates
+
+### Snap
+- Snapcraft configuration in GoReleaser
+- Linux package management
+- Automatic updates
+
+## Release Checklist
+
+1. Update version in code
+2. Update CHANGELOG.md
+3. Run tests: `task test`
+4. Run linter: `task lint`
+5. Test release: `task release-dry-run`
+6. Create release: `task release`
+7. Verify GitHub release
+8. Test installation methods

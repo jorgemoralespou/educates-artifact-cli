@@ -1,0 +1,140 @@
+---
+globs: *_test.go,test/**/*.go
+description: Testing standards and patterns
+---
+
+# Testing Standards
+
+## Test File Organization
+
+- Place test files alongside the code they test
+- Use `_test.go` suffix for test files
+- Use `package [name]_test` for external testing
+- Use `package [name]` for internal testing
+
+## Test Naming
+
+- Use descriptive test function names
+- Follow pattern: `Test[FunctionName]_[Scenario]`
+- Use table-driven tests for multiple scenarios
+- Use subtests for complex test cases
+
+## Test Structure
+
+### Table-Driven Tests
+```go
+func TestParsePlatform(t *testing.T) {
+    tests := []struct {
+        name     string
+        input    string
+        expected *ocispec.Platform
+        wantErr  bool
+    }{
+        {
+            name:     "valid platform",
+            input:    "linux/amd64",
+            expected: &ocispec.Platform{OS: "linux", Architecture: "amd64"},
+            wantErr:  false,
+        },
+        {
+            name:     "invalid platform",
+            input:    "invalid",
+            expected: nil,
+            wantErr:  true,
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            result, err := ParsePlatform(tt.input)
+            if (err != nil) != tt.wantErr {
+                t.Errorf("ParsePlatform() error = %v, wantErr %v", err, tt.wantErr)
+                return
+            }
+            if !reflect.DeepEqual(result, tt.expected) {
+                t.Errorf("ParsePlatform() = %v, want %v", result, tt.expected)
+            }
+        })
+    }
+}
+```
+
+## Test Helpers
+
+- Use `t.Helper()` in helper functions
+- Create setup/teardown functions
+- Use `t.Cleanup()` for cleanup
+- Create test fixtures and utilities
+
+## Mocking and Stubs
+
+- Use interfaces for testable code
+- Create mock implementations for external dependencies
+- Use dependency injection for testability
+- Mock registry clients and external services
+
+## Error Testing
+
+- Test both success and error cases
+- Verify error messages and types
+- Test error wrapping and context
+- Use `errors.Is()` and `errors.As()` for error checking
+
+## Integration Tests
+
+- Test complete workflows
+- Use real registry instances when possible
+- Test with different artifact types
+- Verify end-to-end functionality
+
+## Test Data
+
+- Use test fixtures for consistent data
+- Create temporary directories for file operations
+- Use `t.TempDir()` for temporary files
+- Clean up test data after tests
+
+## Coverage
+
+- Aim for high test coverage
+- Focus on critical paths and edge cases
+- Test error conditions and edge cases
+- Use `go test -cover` to check coverage
+
+## Example Test Structure
+
+```go
+func TestNewOciImageArtifact(t *testing.T) {
+    tests := []struct {
+        name        string
+        repoRef     string
+        platforms   []string
+        pullPlatform string
+        folderPath  string
+        want        *OciImageArtifact
+    }{
+        {
+            name:        "basic artifact",
+            repoRef:     "ghcr.io/test/app:latest",
+            platforms:   []string{"linux/amd64"},
+            pullPlatform: "",
+            folderPath:  "/tmp/test",
+            want: &OciImageArtifact{
+                repoRef:     "ghcr.io/test/app:latest",
+                platforms:   []string{"linux/amd64"},
+                pullPlatform: "",
+                folderPath:  "/tmp/test",
+            },
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            got := NewOciImageArtifact(tt.repoRef, tt.platforms, tt.pullPlatform, tt.folderPath)
+            if !reflect.DeepEqual(got, tt.want) {
+                t.Errorf("NewOciImageArtifact() = %v, want %v", got, tt.want)
+            }
+        })
+    }
+}
+```

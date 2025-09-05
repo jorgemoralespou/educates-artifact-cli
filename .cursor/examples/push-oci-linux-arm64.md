@@ -2,19 +2,18 @@
 
 ## Push
 ```
-./bin/artifact-cli push localhost:5001/educates/my-app-oci-linuxarm:1.0.0 -f ./test/my-app -p linux/arm64 --as oci
+./bin/artifact-cli push localhost:6000/educates/my-app-oci-linuxarm:1.0.0 -f ./test/my-app -p linux/arm64 --as oci
 ```
 
 ## Verify
 
 ```
-crane manifest localhost:5001/educates/my-app-oci-linuxarm:1.0.0 | jq
+crane manifest localhost:6000/educates/my-app-oci-linuxarm:1.0.0 | jq
 ```
 
 ## Result
 
 ```
-crane manifest localhost:5001/educates/my-app-oci-linuxarm:1.0.0 | jq
 {
   "schemaVersion": 2,
   "mediaType": "application/vnd.oci.image.index.v1+json",

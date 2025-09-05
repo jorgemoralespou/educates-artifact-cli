@@ -1,0 +1,94 @@
+---
+globs: pkg/artifact/**/*.go
+description: Artifact implementation patterns and conventions
+---
+
+# Artifact Implementation Guide
+
+## Artifact Interface
+
+All artifact types must implement the `artifact.Artifact` interface:
+
+```go
+type Artifact interface {
+    Push() error
+    Pull() error
+}
+```
+
+## Implementation Pattern
+
+### Constructor Function
+- Use `New[Type]ImageArtifact()` naming convention
+- Accept: `repoRef`, `platforms`, `pullPlatform`, `folderPath` parameters
+- Return the artifact instance
+
+### Push Implementation
+- Create tarball from folder path
+- Push layer blob to registry
+- Create and push manifest/index
+- Handle both single and multi-platform scenarios
+- Use appropriate media types for the artifact format
+
+### Pull Implementation
+- Pull manifest/index from registry
+- Find the appropriate layer
+- Extract tarball to output directory
+- Handle platform selection and fallback strategies
+
+## Media Types
+
+Use constants from [pkg/artifact/constants.go](mdc:pkg/artifact/constants.go):
+
+- **OCI**: `OCIManifestMediaType`, `OCIConfigMediaType`, `OCILayerMediaType`
+- **Docker**: `DockerManifestMediaType`, `DockerConfigMediaType`, `DockerLayerMediaType`
+- **Custom**: Define in constants file
+
+## Error Handling
+
+- Use descriptive error messages
+- Wrap errors with context
+- Handle registry communication errors gracefully
+- Validate inputs early
+
+## Platform Handling
+
+- Parse platform strings into `ocispec.Platform` structs
+- Handle both single platform and multi-platform scenarios
+- Use `utils.ParsePlatform()` for platform parsing
+- Validate platform formats
+
+## Registry Interaction
+
+- Use `remote.NewRepository()` for registry clients
+- Set `PlainHTTP = true` for insecure registries
+- Use `oras.Copy()` for pulling artifacts
+- Handle authentication when needed
+
+## Example Structure
+
+```go
+type OciImageArtifact struct {
+    repoRef      string
+    platforms    []string
+    pullPlatform string
+    folderPath   string
+}
+
+func NewOciImageArtifact(repoRef string, platforms []string, pullPlatform string, folderPath string) *OciImageArtifact {
+    return &OciImageArtifact{
+        repoRef:      repoRef,
+        platforms:    platforms,
+        pullPlatform: pullPlatform,
+        folderPath:   folderPath,
+    }
+}
+
+func (a *OciImageArtifact) Push() error {
+    // Implementation
+}
+
+func (a *OciImageArtifact) Pull() error {
+    // Implementation
+}
+```

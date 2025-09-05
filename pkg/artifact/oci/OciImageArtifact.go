@@ -31,6 +31,7 @@ func NewOciImageArtifact(repoRef string, pushPlatforms []string, pullPlatform st
 }
 
 func (a *OciImageArtifact) Push() error {
+	fmt.Printf("OCI Image Artifact Push\n")
 	fmt.Printf("Packaging folder '%s'...\n", a.path)
 	// Create a tarball of the folder in memory
 	tarballBytes, err := utils.CreateTarGz(a.path)
@@ -88,6 +89,8 @@ func (a *OciImageArtifact) Push() error {
 
 func (a *OciImageArtifact) Pull() error {
 	ctx := context.Background()
+
+	fmt.Printf("OCI Image Artifact Pull\n")
 
 	// Create a registry client
 	repo, err := remote.NewRepository(a.repoRef)
@@ -223,7 +226,6 @@ func processPulledArtifact(ctx context.Context, memStore *memory.Store, pulledDe
 	}
 
 	// Extract the tarball to the output directory
-	fmt.Printf("Extracting content to '%s'...\n", outputDir)
 	if err := utils.ExtractTarGz(bytes.NewReader(tarballBytes), outputDir); err != nil {
 		return fmt.Errorf("failed to extract tarball: %w", err)
 	}

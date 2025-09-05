@@ -1,0 +1,95 @@
+---
+globs: *.go
+description: Go coding standards and conventions
+---
+
+# Go Coding Standards
+
+## Code Style
+
+- Use `gofmt` and `goimports` for formatting
+- Follow standard Go naming conventions
+- Use meaningful variable and function names
+- Prefer composition over inheritance
+- Use interfaces for abstraction
+
+## Error Handling
+
+- Always handle errors explicitly
+- Use `fmt.Errorf` with `%w` verb for error wrapping
+- Return errors early to avoid deep nesting
+- Provide meaningful error messages with context
+
+## Package Structure
+
+- Keep packages focused and cohesive
+- Use internal packages for private implementation details
+- Export only what's necessary for the public API
+- Group related functionality together
+
+## Documentation
+
+- Write package-level documentation
+- Document all exported functions and types
+- Use examples in documentation where helpful
+- Follow Go doc comment conventions
+
+## Testing
+
+- Write tests for all public functions
+- Use table-driven tests for multiple test cases
+- Test both success and error conditions
+- Use `t.Helper()` in test helper functions
+
+## Imports
+
+- Group imports: standard library, third-party, local packages
+- Use blank imports for side effects only
+- Avoid unused imports
+
+## Constants and Variables
+
+- Use `const` for compile-time constants
+- Use `var` for package-level variables
+- Prefer `:=` for local variable declarations
+- Use meaningful constant names
+
+## Example
+
+```go
+// Package example demonstrates proper Go style
+package example
+
+import (
+    "context"
+    "fmt"
+    
+    "github.com/spf13/cobra"
+)
+
+// Config holds configuration for the service
+type Config struct {
+    Host string
+    Port int
+}
+
+// NewService creates a new service instance
+func NewService(cfg Config) (*Service, error) {
+    if cfg.Host == "" {
+        return nil, fmt.Errorf("host cannot be empty")
+    }
+    
+    return &Service{cfg: cfg}, nil
+}
+
+// Service provides example functionality
+type Service struct {
+    cfg Config
+}
+
+// DoSomething performs an operation
+func (s *Service) DoSomething(ctx context.Context) error {
+    // Implementation here
+    return nil
+}
+```

@@ -1,0 +1,169 @@
+---
+globs: *.md,README.md,CHANGELOG.md,specs/**/*.md
+description: Documentation standards and conventions
+---
+
+# Documentation Standards
+
+## README.md
+
+The main project documentation should include:
+- Project description and features
+- Installation instructions
+- Usage examples
+- Configuration options
+- Contributing guidelines
+- License information
+
+### Structure
+1. Project title and description
+2. Features list
+3. Installation methods
+4. Usage examples
+5. Configuration reference
+6. Development setup
+7. Contributing guidelines
+8. License and support
+
+## CHANGELOG.md
+
+Follow [Keep a Changelog](https://keepachangelog.com/) format:
+
+### Sections
+- `[Unreleased]` - Current development
+- `[Version]` - Released versions
+- Categories: Added, Changed, Deprecated, Removed, Fixed, Security
+
+### Format
+```markdown
+## [Unreleased]
+
+### Added
+- New features
+
+### Changed
+- Changes to existing functionality
+
+### Fixed
+- Bug fixes
+
+## [1.0.0] - 2024-01-01
+
+### Added
+- Initial release
+```
+
+## Code Documentation
+
+### Go Code
+- Package-level documentation
+- Exported function documentation
+- Example usage where helpful
+- Follow Go doc conventions
+
+### Command Help
+- Clear usage instructions
+- Comprehensive examples
+- Flag descriptions
+- Error handling information
+
+## API Documentation
+
+### Command Line Interface
+- Document all commands and flags
+- Provide usage examples
+- Explain error conditions
+- Show expected outputs
+
+### Artifact Formats
+- Document supported formats
+- Explain compatibility
+- Provide format specifications
+- Show examples
+
+## Examples
+
+### Command Examples
+```bash
+# Basic usage
+artifact-cli push ghcr.io/my-user/my-app:1.0.0 -f ./app-folder
+
+# Multi-platform
+artifact-cli push ghcr.io/my-user/my-app:1.0.0 -f ./app-folder -p linux/amd64,linux/arm64
+
+# Specific format
+artifact-cli push ghcr.io/my-user/my-app:1.0.0 -f ./app-folder -a imgpkg
+```
+
+### Code Examples
+```go
+// Create a new OCI artifact
+artifact := oci.NewOciImageArtifact(
+    "ghcr.io/my-user/my-app:1.0.0",
+    []string{"linux/amd64"},
+    "",
+    "./my-app",
+)
+
+// Push the artifact
+err := artifact.Push()
+if err != nil {
+    return fmt.Errorf("failed to push artifact: %w", err)
+}
+```
+
+## Specifications
+
+### Format Specifications
+- Document OCI format requirements
+- Explain imgpkg compatibility
+- Detail educates format specifics
+- Provide manifest examples
+
+### Registry Compatibility
+- List supported registries
+- Explain authentication methods
+- Document registry-specific features
+- Provide configuration examples
+
+## Contributing Documentation
+
+### Development Setup
+- Prerequisites
+- Installation steps
+- Build instructions
+- Test procedures
+
+### Code Standards
+- Coding conventions
+- Testing requirements
+- Review process
+- Commit message format
+
+## User Guides
+
+### Quick Start
+- Basic installation
+- First artifact push/pull
+- Common use cases
+- Troubleshooting
+
+### Advanced Usage
+- Multi-platform builds
+- Registry configuration
+- Authentication setup
+- Custom formats
+
+## Maintenance
+
+### Regular Updates
+- Keep examples current
+- Update version numbers
+- Refresh installation instructions
+- Maintain compatibility information
+
+### Review Process
+- Review documentation with code changes
+- Test all examples
+- Verify installation instructions
+- Update related documentation

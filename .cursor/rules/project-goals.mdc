@@ -1,0 +1,228 @@
+---
+alwaysApply: true
+description: Project goals and objectives
+---
+
+# Project goals and objectives
+
+This is a Go-based CLI tool for packaging and managing OCI artifacts with support for multiple formats.
+
+- Use `cobra` library for the commands
+- Use [oras-go](https://github.com/oras-project/oras-go) library for interacting with OCI registries
+- Generated binary will run on `linux` and `macOS`, in both on `amd86` and `arm86` architectures
+
+
+## Tools support compatibility
+
+- Needs to support pulling oci images generated wih [imgpkg](https://github.com/carvel-dev/imgpkg/tree/develop)
+- Needs to support pushing and pulling images compatible with [docker buildx](https://docs.docker.com/reference/cli/docker/buildx/) format.
+- Needs to be able to create [educates training platform](https://github.com/educates/educates-training-platform) artifacts. These will be similar to the `docker buildx` implementation. 
+
+## Methods of the cli
+
+- `push` methiod, to push artifacts to an OCI registry
+- `pull` method, to pull artifacts from an OCI registry
+- `sync` method, to sync artifacts from OCI registries to local folders, guided by a **configuration yaml** file
+
+## Push command requirements
+
+- On `push`, `repository` defining the OCI destination and `path` defining the paths to add to the OCI artifact are **REQUIRED**
+- On `push`, and **optional** `platforms` flag can be provided to instruct which platforms the generated OCI artifact will be created for. Every artifact type will have it's own requirements with respect to platforms flag.
+- On `push`, and **optional** `as` flag can be provided to instruct which type of artifact will be generated. It will default to `educates`
+
+## Pull command requirements
+
+- On `pull`, `repository` defining the OCI repo source and `path` defining the paths where the OCI artifact will be extracted are **REQUIRED**
+- On `pull`, and **optional** `platforms` flag can be provided to instruct which platforms the generated OCI artifact will be pulled for. Default to current operating system's architecture
+- On `pull`, and **optional** `as` flag can be provided to instruct which type of artifact is the source and how processing should be handled. It will default to `educates`
+
+## Sync command requirements
+
+- On `sync`, a `config.yaml` file needs to be provided that will guide the remotes to pull down locally
+- This `config.yaml` file will have the following structure:
+
+```yaml
+spec:
+  # Target destination for pulled down artifacts
+  dest: <root-path-for-pulled-down-artifacts>
+  # List of artifacts to pull
+  artifacts:
+    - image
+        # oci repository where the image is located
+        url: $(image_repository)/{name}-files:$(workshop_version)
+      # List of files (and file patterns) within the oci artifact to extract (include)
+      includePaths:
+      - /workshop/**
+      - /exercises/**
+      # List of files (and file patterns) within the oci artifact to not extract (exclude)
+      exludePaths:
+      - /README.md
+```
+
+- The sync command will go through the list of artifacts defined in the config.yaml and pull them, and extract them
+into the path defined by `dest`, keeping only the files defined by the inclusion/exclusion patterns.
+
+## Implementations
+
+### Carvel's Imgpkg
+
+- Carvel `imgpkg` github repository can be found at https://github.com/carvel-dev/imgpkg
+- `imgpkg` will not generate oci artifacts with index
+- `imgpkg` will use mediaType `application/vnd.docker.distribution.manifest.v2+json` for the oci artifact manifest
+- `imgpkg` will use mediaType `application/vnd.docker.container.image.v1+json` for the oci config
+- `imgpkg` will use mediaType `application/vnd.docker.image.rootfs.diff.tar.gzip` for the oci layers
+
+This is an example manifest of an oci artifact pushed by `imgpkg`
+```
+{
+        "schemaVersion": 2,
+        "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+        "config": {
+                "mediaType": "application/vnd.docker.container.image.v1+json",
+                "size": 273,
+                "digest": "sha256:0998a90be3fd120d67a826dd373a7b91837db5ede267da5a99a202eebcf54d4a"
+        },
+        "layers": [
+                {
+                        "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+                        "size": 45968059,
+                        "digest": "sha256:4f81d41fdf33b1da70704c1050ae815e238fc09c1ee1688924749491314088b8"
+                }
+        ]
+}
+```
+
+### Docker Buildx
+
+- `docker buildx` github repository can be found at https://github.com/moby/moby
+- `docker buildx` **will** generate oci artifacts with index with mediaType `application/vnd.oci.image.index.v1+json`
+- `docker buildx` will generate for every architecture provided a manifest with mediaType `application/vnd.oci.image.manifest.v1+json` and indicating the `platform`
+
+An example of a Docker multiarchitecture oci artifact manifest is:
+```
+{
+        "schemaVersion": 2,
+        "mediaType": "application/vnd.oci.image.index.v1+json",
+        "manifests": [
+           {
+              "mediaType": "application/vnd.oci.image.manifest.v1+json",
+              "size": 669,
+              "digest": "sha256:a0d23f91e20053c1a39ec87f97c63ab55244bab7af69228fa6eb7d75f9cbb00c",
+              "platform": {
+                 "architecture": "arm64",
+                 "os": "linux"
+              }
+           },
+           {
+              "mediaType": "application/vnd.oci.image.manifest.v1+json",
+              "size": 566,
+              "digest": "sha256:8045042db16e4a6f07313e8f68e2e0cac8fe04f79c5ee3027797fd3204af9030",
+              "platform": {
+                 "architecture": "unknown",
+                 "os": "unknown"
+              }
+           }
+        ]
+     }
+```
+
+- `docker buildx` will use mediaType `application/vnd.docker.distribution.manifest.v2+json` for the oci artifact manifest
+- `docker buildx` will use mediaType `application/vnd.docker.container.image.v1+json` for the oci config
+- `docker buildx` will use mediaType `application/vnd.docker.image.rootfs.diff.tar.gzip` for the oci layers
+
+An example of an oci image for `linux/arm64` architecture generated via docker buildx is:
+```
+{
+        "schemaVersion": 2,
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "config": {
+                "mediaType": "application/vnd.oci.image.config.v1+json",
+                "digest": "sha256:2578a5e4565ac62de23a161a19040d6ff04a8311bb274cea5d4cac261dcbed5e",
+                "size": 804
+        },
+        "layers": [
+                {
+                        "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+                        "digest": "sha256:b99300be2662a4e896c1c6546adfd193378459bebd39ff0420ad923a46fc811a",
+                        "size": 278
+                },
+                {
+                        "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+                        "digest": "sha256:1046ddf8815bd91c26c2d3180aeb28488fd71f0b302bc29f07c01c4e74c82c96",
+                        "size": 42765975
+                }
+        ]
+}
+```
+
+### Educates
+
+- `educates` github repository can be found at https://github.com/educates/educates-training-platform
+- `educates` **will** generate oci artifacts with index with mediaType `application/vnd.oci.image.index.v1+json`
+- `educates` will generate for every architecture provided a manifest with mediaType `application/vnd.oci.image.manifest.v1+json` and indicating the `platform`
+
+An example of a Educates multiarchitecture oci artifact manifest is:
+```
+{
+        "schemaVersion": 2,
+        "mediaType": "application/vnd.oci.image.index.v1+json",
+        "manifests": [
+           {
+              "mediaType": "application/vnd.oci.image.manifest.v1+json",
+              "size": 669,
+              "digest": "sha256:a0d23f91e20053c1a39ec87f97c63ab55244bab7af69228fa6eb7d75f9cbb00c",
+              "platform": {
+                 "architecture": "arm64",
+                 "os": "linux"
+              }
+           },
+           {
+              "mediaType": "application/vnd.oci.image.manifest.v1+json",
+              "size": 566,
+              "digest": "sha256:8045042db16e4a6f07313e8f68e2e0cac8fe04f79c5ee3027797fd3204af9030",
+              "platform": {
+                 "architecture": "amd64",
+                 "os": "linux"
+              }
+           }
+        ]
+     }
+```
+
+- `educates` will use mediaType `application/vnd.docker.distribution.manifest.v2+json` for the oci artifact manifest
+- `educates` will use mediaType `application/vnd.docker.container.image.v1+json` for the oci config
+- `educates` will use mediaType `application/vnd.docker.image.rootfs.diff.tar.gzip` for the oci layers
+
+An example of an oci image for `linux/arm64` architecture generated via docker buildx is:
+```
+{
+        "schemaVersion": 2,
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "config": {
+                "mediaType": "application/vnd.oci.image.config.v1+json",
+                "digest": "sha256:2578a5e4565ac62de23a161a19040d6ff04a8311bb274cea5d4cac261dcbed5e",
+                "size": 804
+        },
+        "layers": [
+                {
+                        "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+                        "digest": "sha256:b99300be2662a4e896c1c6546adfd193378459bebd39ff0420ad923a46fc811a",
+                        "size": 278
+                },
+                {
+                        "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+                        "digest": "sha256:1046ddf8815bd91c26c2d3180aeb28488fd71f0b302bc29f07c01c4e74c82c96",
+                        "size": 42765975
+                }
+        ]
+}
+```
+
+### Annotations
+
+Every type of artifact will generate the following annotations:
+
+- "dev.educates.artifact-cli.artifact-type": Artifact type. Can be `oci`,`imgpkg` or `educates`
+- "dev.educates.artifact-cli.tool": Name of the CLI used.
+- "dev.educates.artifact-cli.version": Version of the CLI used.
+- "org.opencontainers.image.platform": Platform of the current architecture. Not added on OCI index metadata

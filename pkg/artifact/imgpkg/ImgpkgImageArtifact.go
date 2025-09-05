@@ -30,6 +30,7 @@ func NewImgpkgImageArtifact(repoRef string, pushPlatforms []string, pullPlatform
 }
 
 func (a *ImgpkgImageArtifact) Push() error {
+	fmt.Printf("Imgpkg Image Artifact Push\n")
 	fmt.Printf("Packaging folder '%s'...\n", a.path)
 	// Create a tarball of the folder in memory
 	tarballBytes, err := utils.CreateTarGz(a.path)

@@ -1,0 +1,28 @@
+spec:
+  # Target destination for pulled down artifacts
+  dest: ./workshops
+  
+  # List of artifacts to pull
+  artifacts:
+    - image:
+        # OCI repository where the image is located
+        url: ghcr.io/my-org/workshop-files:v1.0.0
+      # List of files (and file patterns) within the OCI artifact to extract (include)
+      includePaths:
+        - /workshop/**
+        - /exercises/**
+        - /resources/**
+      # List of files (and file patterns) within the OCI artifact to not extract (exclude)
+      excludePaths:
+        - /README.md
+        - /docs/**
+        - /tests/**
+    
+    - image:
+        url: ghcr.io/my-org/advanced-workshop:v2.1.0
+      includePaths:
+        - /content/**
+        - /labs/**
+      excludePaths:
+        - /temp/**
+        - /cache/**

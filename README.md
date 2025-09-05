@@ -1,6 +1,6 @@
 # Artifact CLI
 
-A command-line interface to package local folders, push them as OCI artifacts to a registry, and pull them back down with support for multiple artifact formats.
+A command-line interface to package local folders, push them as OCI artifacts to a registry, pull them back down, and sync multiple artifacts based on configuration with support for multiple artifact formats.
 
 ## Features
 
@@ -9,6 +9,7 @@ A command-line interface to package local folders, push them as OCI artifacts to
 - **Compatibility**: Works with existing OCI registries and tools
 - **Flexible Pulling**: Smart fallback strategies for pulling artifacts from different sources
 - **Artifact Identification**: Automatically identifies and handles different artifact types
+- **Batch Synchronization**: Sync multiple artifacts with file filtering using configuration files
 
 ## Installation
 
@@ -70,6 +71,91 @@ artifact-cli pull ghcr.io/my-user/my-app:1.0.1 -o ./restored-app -a imgpkg
 - `-o, --output`: Path to the target directory for extraction (required)
 - `-p, --platform`: Target platform (e.g., 'linux/amd64'). If not specified, uses fallback strategies
 - `-a, --as`: Type of artifact to pull (oci, imgpkg, educates). Defaults to oci
+
+### Sync Command
+
+Sync multiple artifacts from OCI registries to local folders based on a configuration file:
+
+```bash
+# Sync artifacts using configuration file
+artifact-cli sync -c config.yaml
+```
+
+#### Sync Configuration
+
+Create a `config.yaml` file to define which artifacts to sync:
+
+```yaml
+spec:
+  # Target destination for pulled down artifacts
+  dest: ./workshops
+  
+  # List of artifacts to pull
+  artifacts:
+    - image:
+        # OCI repository where the image is located
+        url: ghcr.io/my-org/workshop-files:v1.0.0
+      # List of files (and file patterns) within the OCI artifact to extract (include)
+      includePaths:
+        - /workshop/**
+        - /exercises/**
+        - /resources/**
+      # List of files (and file patterns) within the OCI artifact to not extract (exclude)
+      excludePaths:
+        - /README.md
+        - /docs/**
+        - /tests/**
+    
+    - image:
+        url: ghcr.io/my-org/advanced-workshop:v2.1.0
+      includePaths:
+        - /content/**
+        - /labs/**
+      excludePaths:
+        - /temp/**
+        - /cache/**
+```
+
+#### Sync Options
+
+- `-c, --config`: Path to the configuration YAML file (required)
+
+#### Sync Features
+
+- **Multiple Artifacts**: Sync multiple artifacts in a single command
+- **File Filtering**: Use include/exclude patterns to control which files are extracted
+- **Pattern Matching**: Support for glob patterns (`**` for recursive matching)
+- **Fallback Strategies**: Automatically tries different artifact formats (OCI, imgpkg, educates)
+- **Progress Tracking**: Shows progress for each artifact being processed
+
+## Verbosity Control
+
+The CLI supports a simple verbosity system to control output:
+
+### Verbose Flag
+
+Use the `-v` or `--verbose` flag to enable detailed output:
+
+```bash
+# Quiet mode (default) - only shows errors and final results
+artifact-cli push ghcr.io/my-user/my-app:1.0.0 -f ./app-folder
+
+# Verbose mode - shows progress and detailed information
+artifact-cli push ghcr.io/my-user/my-app:1.0.0 -f ./app-folder -v
+
+# Verbose sync
+artifact-cli sync -c config.yaml -v
+
+# Verbose pull
+artifact-cli pull ghcr.io/my-user/my-app:1.0.1 -o ./restored-app -v
+```
+
+### Output Behavior
+
+- **Default (no `-v`)**: Only error messages and final results are shown
+- **Verbose (`-v`)**: Progress messages, validation warnings, and detailed status updates are displayed
+- **Error messages**: Always shown regardless of verbosity level
+- **Final results**: Always shown (e.g., "Successfully synced X artifacts")
 
 ## Artifact Types
 
@@ -296,3 +382,4 @@ For issues and questions:
 ## TODO
 
 - [ ] Support secure/authenticated repositories
+- [ ] Support .ignorefile for push, so that some files are not added to the OCI image

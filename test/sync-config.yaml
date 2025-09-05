@@ -1,0 +1,23 @@
+spec:
+  # Target destination for pulled down artifacts
+  dest: ./test/output-workshops
+  
+  # List of artifacts to pull
+  artifacts:
+    - path: k8s-fundamentals
+      image:
+        # OCI repository where the image is located
+        url: ghcr.io/educates/lab-k8s-fundamentals-files:8.3
+      # List of files (and file patterns) within the OCI artifact to extract (include)
+      includePaths:
+        - /workshop/**
+        - /exercises/**
+        - /resources/**
+    
+    - path: container-basics
+      image:
+        url: ghcr.io/educates/lab-container-basics-files:1.1
+      excludePaths:
+        - /README.md
+        - /docs/**
+        - /tests/**

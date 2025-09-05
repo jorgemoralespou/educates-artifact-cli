@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"educates-artifact-cli/pkg/artifact"
@@ -36,7 +34,10 @@ func NewPushCmd() *cobra.Command {
   artifact-cli push ghcr.io/my-user/my-app:1.0.1 -f ./app-folder -p linux/amd64,linux/arm64
 
   # Push an artifact with a specific artifact type
-  artifact-cli push ghcr.io/my-user/my-app:1.0.1 -f ./app-folder -a imgpkg`,
+  artifact-cli push ghcr.io/my-user/my-app:1.0.1 -f ./app-folder -a imgpkg
+
+  # Verbose push
+  artifact-cli push ghcr.io/my-user/my-app:1.0.0 -f ./app-folder -v`,
 
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
@@ -46,7 +47,7 @@ func NewPushCmd() *cobra.Command {
 
 			// Do some validation
 			if opts.ArtifactType == ArtifactTypeImgpkg && len(platforms) != 0 {
-				fmt.Println("when pushing an Imgpkg artifact, platforms will be ignored")
+				utils.VerbosePrintln("when pushing an Imgpkg artifact, platforms will be ignored")
 				platforms = nil
 			}
 

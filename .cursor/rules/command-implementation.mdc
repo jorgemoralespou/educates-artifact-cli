@@ -1,0 +1,88 @@
+---
+globs: pkg/cmd/*.go
+description: Command implementation patterns and conventions
+---
+
+# Command Implementation Guide
+
+## Command Structure
+
+Commands are implemented in [pkg/cmd/](mdc:pkg/cmd/) following Cobra patterns.
+
+### Command Options Structure
+Define a struct for command options:
+
+```go
+type PushCmdOpts struct {
+    RepoRef      string
+    Platforms    string
+    FolderPath   string
+    ArtifactType ArtifactType
+}
+```
+
+### Command Creation Pattern
+- Use `New[Command]Cmd()` naming convention
+- Create options struct instance
+- Set default values
+- Define command with proper usage, examples, and validation
+- Add flags using `cmd.Flags()`
+- Mark required flags with `cmd.MarkFlagRequired()`
+
+### Error Handling
+- Use `SilenceUsage: true` to prevent showing usage on errors
+- Return descriptive errors
+- Validate inputs early
+- Use `cobra.ExactArgs()` for argument validation
+
+### Artifact Type Selection
+Use switch statement to create appropriate artifact type:
+
+```go
+var artifact artifact.Artifact
+switch opts.ArtifactType {
+case ArtifactTypeOci:
+    artifact = oci.NewOciImageArtifact(repoRef, platforms, "", opts.FolderPath)
+case ArtifactTypeImgpkg:
+    artifact = imgpkg.NewImgpkgImageArtifact(repoRef, platforms, "", opts.FolderPath)
+case ArtifactTypeEducates:
+    artifact = educates.NewEducatesImageArtifact(repoRef, platforms, "", opts.FolderPath)
+}
+return artifact.Push()
+```
+
+## Flag Conventions
+
+- Use short and long flag names: `-f, --folder`
+- Use descriptive help text
+- Group related flags together
+- Use appropriate flag types (StringVarP, BoolVarP, etc.)
+
+## Validation
+
+- Validate required fields
+- Check platform formats using `utils.ValidatePlatforms()`
+- Handle artifact-specific validation (e.g., imgpkg ignores platforms)
+- Provide helpful error messages
+
+## Examples
+
+Include comprehensive examples in command help:
+
+```go
+Example: `  # Basic usage
+  artifact-cli push ghcr.io/my-user/my-app:1.0.0 -f ./app-folder
+
+  # Multi-platform
+  artifact-cli push ghcr.io/my-user/my-app:1.0.1 -f ./app-folder -p linux/amd64,linux/arm64
+
+  # Specific artifact type
+  artifact-cli push ghcr.io/my-user/my-app:1.0.0 -f ./app-folder -a imgpkg`,
+```
+
+## Integration with Artifacts
+
+- Use the artifact interface for push/pull operations
+- Handle different artifact types transparently
+- Pass appropriate parameters to artifact constructors
+- Let artifacts handle their specific logic

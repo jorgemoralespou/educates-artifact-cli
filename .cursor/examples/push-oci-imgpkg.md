@@ -2,13 +2,13 @@
 
 ## Push
 ```
-./bin/artifact-cli push localhost:5001/educates/my-app-oci-imgpkg:1.0.0 -f ./test/my-app --as imgpkg
+./bin/artifact-cli push localhost:6000/educates/my-app-oci-imgpkg:1.0.0 -f ./test/my-app --as imgpkg
 ```
 
 ## Verify
 
 ```
-crane manifest localhost:5001/educates/my-app-oci-imgpkg:1.0.0 | jq
+crane manifest localhost:6000/educates/my-app-oci-imgpkg:1.0.0 | jq
 ```
 
 ## Result

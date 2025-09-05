@@ -102,6 +102,27 @@ tasks:
     cmds:
       - ./bin/artifact-cli pull localhost:5001/my-app:latest -o ./test/output-app -p linux/amd64
 
+  example-sync:
+    desc: Example workflow to sync artifacts using configuration
+    deps: [build]
+    cmds:
+      - echo "Creating example sync configuration..."
+      - |
+        cat > sync-config.yaml << 'EOF'
+        spec:
+          dest: ./synced-workshops
+          artifacts:
+            - image:
+                url: localhost:5001/my-app:latest
+              includePaths:
+                - /workshop/**
+                - /exercises/**
+              excludePaths:
+                - /README.md
+        EOF
+      - ./bin/artifact-cli sync -c sync-config.yaml
+      - echo "Sync completed! Check ./synced-workshops directory"
+
   check:
     desc: Run all checks (lint, test, build)
     deps: [lint, test, build]

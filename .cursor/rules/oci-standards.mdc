@@ -1,0 +1,112 @@
+---
+globs: pkg/artifact/**/*.go,pkg/utils/*.go
+description: OCI and container standards
+---
+
+# OCI and Container Standards
+
+## OCI Specification Compliance
+
+Follow the Open Container Initiative (OCI) specifications for:
+- Image manifests and indexes
+- Layer formats and media types
+- Platform specifications
+- Annotations and metadata
+
+## Media Types
+
+Use standard OCI media types from [pkg/artifact/constants.go](mdc:pkg/artifact/constants.go):
+
+### OCI Media Types
+- Manifest: `application/vnd.oci.image.manifest.v1+json`
+- Config: `application/vnd.oci.image.config.v1+json`
+- Layer: `application/vnd.oci.image.layer.v1.tar+gzip`
+- Index: `application/vnd.oci.image.index.v1+json`
+
+### Docker Media Types (for compatibility)
+- Manifest: `application/vnd.docker.distribution.manifest.v2+json`
+- Config: `application/vnd.docker.container.image.v1+json`
+- Layer: `application/vnd.docker.image.rootfs.diff.tar.gzip`
+
+## Platform Handling
+
+- Use `ocispec.Platform` struct for platform specifications
+- Support standard OS/Arch combinations
+- Handle platform selection in multi-platform images
+- Use `runtime.GOOS` and `runtime.GOARCH` for current platform
+
+## Registry Interaction
+
+- Use `oras.land/oras-go/v2` for registry operations
+- Support both HTTP and HTTPS registries
+- Handle authentication when required
+- Use `remote.NewRepository()` for registry clients
+
+## Layer Management
+
+- Create tarballs using standard tar/gzip format
+- Use appropriate layer media types
+- Handle layer extraction properly
+- Support multiple layer formats for compatibility
+
+## Manifest Creation
+
+### Single Platform
+```go
+manifest := ocispec.Manifest{
+    Versioned: specs.Versioned{
+        SchemaVersion: 2,
+    },
+    Config:    configDesc,
+    Layers:    []ocispec.Descriptor{layerDesc},
+    MediaType: oci.OCIManifestMediaType,
+    Annotations: map[string]string{
+        "org.opencontainers.image.title": "artifact-cli artifact",
+        "dev.educates.artifact-cli.tool": "artifact-cli",
+    },
+}
+```
+
+### Multi-Platform Index
+```go
+index := ocispec.Index{
+    Versioned: specs.Versioned{
+        SchemaVersion: 2,
+    },
+    MediaType: oci.OCIIndexMediaType,
+    Manifests: manifestDescriptors,
+    Annotations: map[string]string{
+        "org.opencontainers.image.title": "artifact-cli multi-platform artifact",
+    },
+}
+```
+
+## Annotations
+
+Use standard OCI annotations:
+- `org.opencontainers.image.title`
+- `org.opencontainers.image.description`
+- `org.opencontainers.image.platform`
+- `dev.educates.artifact-cli.version`
+- `dev.educates.artifact-cli.tool`
+
+## Error Handling
+
+- Handle registry communication errors
+- Provide meaningful error messages
+- Support retry logic for transient failures
+- Validate OCI structures before pushing
+
+## Compatibility
+
+- Support both OCI and Docker formats
+- Handle different registry implementations
+- Support both single and multi-platform images
+- Maintain backward compatibility
+
+## Security
+
+- Validate input data
+- Use secure defaults
+- Handle authentication securely
+- Avoid exposing sensitive information in logs
