@@ -1,15 +1,18 @@
 package educates
 
-import "fmt"
+import (
+	"educates-artifact-cli/pkg/artifact"
+	"fmt"
+)
 
 type EducatesImageArtifact struct {
-	repoRef       string
+	repoRef       *artifact.RepositoryRef
 	pushPlatforms []string
 	pullPlatform  string
 	path          string
 }
 
-func NewEducatesImageArtifact(repoRef string, pushPlatforms []string, pullPlatform string, path string) *EducatesImageArtifact {
+func NewEducatesImageArtifact(repoRef *artifact.RepositoryRef, pushPlatforms []string, pullPlatform string, path string) *EducatesImageArtifact {
 	return &EducatesImageArtifact{repoRef: repoRef, pushPlatforms: pushPlatforms, pullPlatform: pullPlatform, path: path}
 }
 

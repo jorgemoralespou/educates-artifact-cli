@@ -12,6 +12,8 @@ import (
 
 type PushCmdOpts struct {
 	RepoRef      string
+	Username     string
+	Password     string
 	Platforms    string
 	FolderPath   string
 	ArtifactType ArtifactType
@@ -42,7 +44,7 @@ func NewPushCmd() *cobra.Command {
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			repoRef := args[0]
+			repoRef := artifact.NewRepositoryRef(args[0], opts.Username, opts.Password)
 			platforms := utils.SlicePlatforms(opts.Platforms)
 
 			// Do some validation
@@ -72,6 +74,8 @@ func NewPushCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.FolderPath, "folder", "f", "", "Path to the folder to package and push (required)")
 	cmd.Flags().StringVarP(&opts.Platforms, "platforms", "p", "", "A comma-separated list of platforms (e.g., 'linux/amd64,linux/arm64')")
 	cmd.Flags().Var(&opts.ArtifactType, "as", "Type of artifact to push (oci, imgpkg, educates). Defaults to oci")
+	cmd.Flags().StringVarP(&opts.Username, "username", "u", "", "Username for registry authentication (can also use ARTIFACT_CLI_USERNAME env var)")
+	cmd.Flags().StringVarP(&opts.Password, "password", "w", "", "Password or token for registry authentication (can also use ARTIFACT_CLI_PASSWORD env var)")
 	_ = cmd.MarkFlagRequired("folder")
 
 	return cmd

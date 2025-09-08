@@ -48,76 +48,6 @@ checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
   algorithm: sha256
 
-# Snapcraft (Snap packages)
-snapcrafts:
-  - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}.snap"
-    summary: "A CLI tool to package local folders as OCI artifacts"
-    description: |
-      A command-line interface to package local folders, push them as OCI artifacts 
-      to a registry, and pull them back down with support for multiple artifact formats.
-      
-      Features:
-      - Multi-format support (OCI, imgpkg, educates)
-      - Cross-platform building and pushing
-      - Smart fallback strategies for pulling
-      - Compatibility with existing OCI tools
-    grade: stable
-    confinement: strict
-    base: core20
-    license: MIT
-    build_base: core20
-    apps:
-      artifact-cli:
-        command: artifact-cli
-        plugs:
-          - home
-          - removable-media
-          - network
-    parts:
-      artifact-cli:
-        plugin: go
-        source: .
-        go-importpath: educates-artifact-cli
-        build-packages:
-          - gcc
-          - git
-
-# Homebrew (macOS)
-brews:
-  - name: artifact-cli
-    description: "A CLI tool to package local folders as OCI artifacts"
-    homepage: "https://github.com/jorgemoralespou/educates-artifact-cli"
-    license: "MIT"
-    skip_upload: auto
-    test: |
-      system "#{bin}/artifact-cli --version"
-    install: |
-      bin.install "artifact-cli"
-
-# Scoop (Windows)
-scoops:
-  - name: artifact-cli
-    description: "A CLI tool to package local folders as OCI artifacts"
-    homepage: "https://github.com/jorgemoralespou/educates-artifact-cli"
-    license: "MIT"
-    skip_upload: auto
-    persist:
-      - config
-
-# Docker images
-dockers:
-  - id: artifact-cli
-    image_templates:
-      - "ghcr.io/jorgemoralespou/artifact-cli:{{ .Version }}"
-      - "ghcr.io/jorgemoralespou/artifact-cli:latest"
-    dockerfile: Dockerfile
-    use: buildx
-    build_flag_templates:
-      - --platform=linux/amd64
-      - --platform=linux/arm64
-    extra_files:
-      - README.md
-
 # GitHub release configuration
 release:
   github:
@@ -137,24 +67,6 @@ release:
     
     Download the latest release from the [releases page](https://github.com/jorgemoralespou/educates-artifact-cli/releases).
     
-    ### Using Homebrew (macOS)
-    
-    ```bash
-    brew install jorgemoralespou/tap/artifact-cli
-    ```
-    
-    ### Using Scoop (Windows)
-    
-    ```bash
-    scoop bucket add jorgemoralespou https://github.com/jorgemoralespou/scoop-bucket.git
-    scoop install artifact-cli
-    ```
-    
-    ### Using Snap (Linux)
-    
-    ```bash
-    snap install artifact-cli
-    ```
 
 # Changelog configuration
 changelog:
@@ -256,4 +168,3 @@ source:
     - "specs/**/*"
     - "Taskfile.yml"
     - ".goreleaser.yml"
-    - "Dockerfile*"

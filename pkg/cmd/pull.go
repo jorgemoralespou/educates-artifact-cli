@@ -15,6 +15,8 @@ import (
 
 type PullCmdOpts struct {
 	RepoRef      string
+	Username     string
+	Password     string
 	PlatformStr  string
 	OutputDir    string
 	ArtifactType ArtifactType
@@ -39,7 +41,7 @@ func NewPullCmd() *cobra.Command {
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			repoRef := args[0]
+			repoRef := artifact.NewRepositoryRef(args[0], opts.Username, opts.Password)
 
 			// Use default platforms if no platform is specified
 			if opts.PlatformStr == "" {
@@ -81,6 +83,8 @@ func NewPullCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.OutputDir, "output", "o", "", "Path to the target directory for extraction (required)")
 	cmd.Flags().StringVarP(&opts.PlatformStr, "platform", "p", "", "Target platform (e.g., 'linux/amd64'). If not specified, uses current system platform")
 	cmd.Flags().Var(&opts.ArtifactType, "as", "Type of artifact to push (oci, imgpkg, educates). Defaults to oci")
+	cmd.Flags().StringVarP(&opts.Username, "username", "u", "", "Username for registry authentication (can also use ARTIFACT_CLI_USERNAME env var)")
+	cmd.Flags().StringVarP(&opts.Password, "password", "w", "", "Password or token for registry authentication (can also use ARTIFACT_CLI_PASSWORD env var)")
 	_ = cmd.MarkFlagRequired("output")
 
 	return cmd

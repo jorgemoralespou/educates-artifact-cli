@@ -56,14 +56,17 @@ func processArtifact(artifactConfig SyncArtifact, destDir string) error {
 	// This follows the same fallback logic as the pull command
 	platformStr := utils.GetOSPlatformStr()
 
+	// Create repository reference with credentials
+	repoRef := artifact.NewRepositoryRef(artifactConfig.Image.URL, artifactConfig.Image.Username, artifactConfig.Image.Password)
+
 	// Try OCI format first
-	artifactHandler = oci.NewOciImageArtifact(artifactConfig.Image.URL, nil, platformStr, tempDir)
+	artifactHandler = oci.NewOciImageArtifact(repoRef, nil, platformStr, tempDir)
 	if err := artifactHandler.Pull(); err != nil {
 		// Try imgpkg format
-		artifactHandler = imgpkg.NewImgpkgImageArtifact(artifactConfig.Image.URL, nil, platformStr, tempDir)
+		artifactHandler = imgpkg.NewImgpkgImageArtifact(repoRef, nil, platformStr, tempDir)
 		if err := artifactHandler.Pull(); err != nil {
 			// Try educates format
-			artifactHandler = educates.NewEducatesImageArtifact(artifactConfig.Image.URL, nil, platformStr, tempDir)
+			artifactHandler = educates.NewEducatesImageArtifact(repoRef, nil, platformStr, tempDir)
 			if err := artifactHandler.Pull(); err != nil {
 				return fmt.Errorf("failed to pull artifact with any supported format: %w", err)
 			}

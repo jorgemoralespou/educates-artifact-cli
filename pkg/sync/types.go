@@ -18,5 +18,7 @@ type SyncArtifact struct {
 }
 
 type ArtifactImage struct {
-	URL string `yaml:"url" json:"url"`
+	URL      string `yaml:"url" json:"url"`
+	Username string `yaml:"username,omitempty" json:"username,omitempty"`
+	Password string `yaml:"password,omitempty" json:"password,omitempty"`
 }

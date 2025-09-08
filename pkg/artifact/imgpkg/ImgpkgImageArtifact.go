@@ -19,13 +19,13 @@ import (
 )
 
 type ImgpkgImageArtifact struct {
-	repoRef       string
+	repoRef       *artifact.RepositoryRef
 	pushPlatforms []string
 	pullPlatform  string
 	path          string
 }
 
-func NewImgpkgImageArtifact(repoRef string, pushPlatforms []string, pullPlatform string, path string) *ImgpkgImageArtifact {
+func NewImgpkgImageArtifact(repoRef *artifact.RepositoryRef, pushPlatforms []string, pullPlatform string, path string) *ImgpkgImageArtifact {
 	return &ImgpkgImageArtifact{repoRef: repoRef, pushPlatforms: pushPlatforms, pullPlatform: pullPlatform, path: path}
 }
 
@@ -40,13 +40,11 @@ func (a *ImgpkgImageArtifact) Push() error {
 
 	ctx := context.Background()
 
-	// Create a new registry client
-	repo, err := remote.NewRepository(a.repoRef)
+	// Create a new registry client with authentication
+	repo, err := artifact.CreateAuthenticatedRepository(ctx, a.repoRef)
 	if err != nil {
 		return fmt.Errorf("failed to create repository client: %w", err)
 	}
-	// Use plain HTTP if the registry is insecure
-	repo.PlainHTTP = true
 
 	// Push the folder layer (blob) to the registry. This is shared across all platforms.
 	// Use OCI layer media type for compatibility
@@ -70,12 +68,12 @@ func (a *ImgpkgImageArtifact) Push() error {
 	}
 
 	// Tag the root manifest/index with the provided tag
-	tag := utils.GetTagFromRef(a.repoRef)
+	tag := utils.GetTagFromRef(a.repoRef.String())
 	if err := repo.Tag(ctx, rootDesc, tag); err != nil {
 		return fmt.Errorf("failed to tag root descriptor: %w", err)
 	}
 
-	fmt.Printf("\nSuccessfully pushed and tagged artifact: %s\n", a.repoRef)
+	fmt.Printf("\nSuccessfully pushed and tagged artifact: %s\n", a.repoRef.String())
 	fmt.Printf("Root digest: %s\n", rootDesc.Digest)
 
 	return nil
@@ -84,12 +82,11 @@ func (a *ImgpkgImageArtifact) Push() error {
 func (a *ImgpkgImageArtifact) Pull() error {
 	ctx := context.Background()
 
-	// Create a registry client
-	repo, err := remote.NewRepository(a.repoRef)
+	// Create a registry client with authentication
+	repo, err := artifact.CreateAuthenticatedRepository(ctx, a.repoRef)
 	if err != nil {
 		return fmt.Errorf("failed to create repository client: %w", err)
 	}
-	repo.PlainHTTP = true
 
 	// Create a memory store to hold the pulled content
 	memStore := memory.New()
@@ -98,7 +95,7 @@ func (a *ImgpkgImageArtifact) Pull() error {
 	copyOpts := oras.DefaultCopyOptions
 
 	// Use oras.Copy to pull the artifact
-	pulledDesc, err := oras.Copy(ctx, repo, a.repoRef, memStore, a.repoRef, copyOpts)
+	pulledDesc, err := oras.Copy(ctx, repo, a.repoRef.String(), memStore, a.repoRef.String(), copyOpts)
 	if err != nil {
 		// Check if the error is a CopyError and return details
 		var copyErr *oras.CopyError

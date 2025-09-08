@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"slices"
 
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -20,13 +21,13 @@ import (
 )
 
 type OciImageArtifact struct {
-	repoRef       string
+	repoRef       *artifact.RepositoryRef
 	pushPlatforms []string
 	pullPlatform  string
 	path          string
 }
 
-func NewOciImageArtifact(repoRef string, pushPlatforms []string, pullPlatform string, path string) *OciImageArtifact {
+func NewOciImageArtifact(repoRef *artifact.RepositoryRef, pushPlatforms []string, pullPlatform string, path string) *OciImageArtifact {
 	return &OciImageArtifact{repoRef: repoRef, pushPlatforms: pushPlatforms, pullPlatform: pullPlatform, path: path}
 }
 
@@ -41,13 +42,11 @@ func (a *OciImageArtifact) Push() error {
 
 	ctx := context.Background()
 
-	// Create a new registry client
-	repo, err := remote.NewRepository(a.repoRef)
+	// Create a new registry client with authentication
+	repo, err := artifact.CreateAuthenticatedRepository(ctx, a.repoRef)
 	if err != nil {
 		return fmt.Errorf("failed to create repository client: %w", err)
 	}
-	// Use plain HTTP if the registry is insecure
-	repo.PlainHTTP = true
 
 	// Push the folder layer (blob) to the registry. This is shared across all platforms.
 	// Use OCI layer media type for compatibility
@@ -63,9 +62,15 @@ func (a *OciImageArtifact) Push() error {
 
 	var rootDesc ocispec.Descriptor
 
-	// When no platforms are provided, we use the default platforms (linux/amd64 and linux/arm64)
+	// When no platforms are provided, we use the default platforms (linux/amd64 and linux/arm64) as well
+	// as the current platform
 	if len(a.pushPlatforms) == 0 {
 		a.pushPlatforms = utils.SlicePlatforms(utils.DefaultPlatforms)
+		currentPlatform := utils.GetOSPlatformStr()
+		// If current platform is not in the default platforms, add it
+		if !slices.Contains(a.pushPlatforms, currentPlatform) {
+			a.pushPlatforms = append(a.pushPlatforms, currentPlatform)
+		}
 	}
 	// --- Multi-Platform (Index) Push ---
 	fmt.Printf("Performing a multi-platform push for: %s\n", a.pushPlatforms)
@@ -75,12 +80,12 @@ func (a *OciImageArtifact) Push() error {
 	}
 
 	// Tag the root manifest/index with the provided tag
-	tag := utils.GetTagFromRef(a.repoRef)
+	tag := utils.GetTagFromRef(a.repoRef.String())
 	if err := repo.Tag(ctx, rootDesc, tag); err != nil {
 		return fmt.Errorf("failed to tag root descriptor: %w", err)
 	}
 
-	fmt.Printf("\nSuccessfully pushed and tagged artifact: %s\n", a.repoRef)
+	fmt.Printf("\nSuccessfully pushed and tagged artifact: %s\n", a.repoRef.String())
 	fmt.Printf("Root digest: %s\n", rootDesc.Digest)
 
 	return nil
@@ -92,12 +97,11 @@ func (a *OciImageArtifact) Pull() error {
 
 	fmt.Printf("OCI Image Artifact Pull\n")
 
-	// Create a registry client
-	repo, err := remote.NewRepository(a.repoRef)
+	// Create a registry client with authentication
+	repo, err := artifact.CreateAuthenticatedRepository(ctx, a.repoRef)
 	if err != nil {
 		return fmt.Errorf("failed to create repository client: %w", err)
 	}
-	repo.PlainHTTP = true
 
 	// Create a memory store to hold the pulled content
 	memStore := memory.New()
@@ -112,7 +116,7 @@ func (a *OciImageArtifact) Pull() error {
 	copyOpts.WithTargetPlatform(&targetPlatform)
 
 	// Use oras.Copy to pull the artifact
-	pulledDesc, err := oras.Copy(ctx, repo, a.repoRef, memStore, a.repoRef, copyOpts)
+	pulledDesc, err := oras.Copy(ctx, repo, a.repoRef.String(), memStore, a.repoRef.String(), copyOpts)
 	if err != nil {
 		// Check if the error is a CopyError and return details
 		var copyErr *oras.CopyError

@@ -7,7 +7,10 @@ spec:
     - path: k8s-fundamentals
       image:
         # OCI repository where the image is located
-        url: ghcr.io/educates/lab-k8s-fundamentals-files:8.3
+        #url: ghcr.io/educates/lab-k8s-fundamentals-files:8.3
+        url: ghcr.io/educates/lab-toolhive-local-mcps-files:develop
+        username: educates
+        password: educates123!
       # List of files (and file patterns) within the OCI artifact to extract (include)
       includePaths:
         - /workshop/**
