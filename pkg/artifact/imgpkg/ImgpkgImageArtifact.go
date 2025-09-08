@@ -43,7 +43,7 @@ func (a *ImgpkgImageArtifact) Push() error {
 	// Create a new registry client with authentication
 	repo, err := artifact.CreateAuthenticatedRepository(ctx, a.repoRef)
 	if err != nil {
-		return fmt.Errorf("failed to create repository client: %w", err)
+		return err
 	}
 
 	// Push the folder layer (blob) to the registry. This is shared across all platforms.

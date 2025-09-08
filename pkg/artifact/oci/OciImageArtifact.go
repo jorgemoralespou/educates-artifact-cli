@@ -100,7 +100,7 @@ func (a *OciImageArtifact) Pull() error {
 	// Create a registry client with authentication
 	repo, err := artifact.CreateAuthenticatedRepository(ctx, a.repoRef)
 	if err != nil {
-		return fmt.Errorf("failed to create repository client: %w", err)
+		return err
 	}
 
 	// Create a memory store to hold the pulled content
