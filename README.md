@@ -322,24 +322,6 @@ curl -fsSL https://raw.githubusercontent.com/jorgemoralespou/educates-artifact-c
 2. Extract the archive for your platform
 3. Move the binary to your PATH
 
-### Using Package Managers
-
-#### Homebrew (macOS)
-```bash
-brew install jorgemoralespou/tap/artifact-cli
-```
-
-#### Scoop (Windows)
-```bash
-scoop bucket add jorgemoralespou https://github.com/jorgemoralespou/scoop-bucket.git
-scoop install artifact-cli
-```
-
-#### Snap (Linux)
-```bash
-snap install artifact-cli
-```
-
 ## Contributing
 
 1. Fork the repository
@@ -381,5 +363,5 @@ For issues and questions:
 
 ## TODO
 
-- [ ] Support secure/authenticated repositories
+- [*] Support secure/authenticated repositories
 - [ ] Support .ignorefile for push, so that some files are not added to the OCI image

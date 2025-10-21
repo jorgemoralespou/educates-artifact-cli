@@ -3,21 +3,20 @@ package oci
 import (
 	"bytes"
 	"context"
+	"educates-artifact-cli/pkg/artifact"
+	"educates-artifact-cli/pkg/utils"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"runtime"
 	"slices"
 
 	"github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/memory"
 	"oras.land/oras-go/v2/registry/remote"
-
-	"educates-artifact-cli/pkg/artifact"
-	"educates-artifact-cli/pkg/utils"
 )
 
 type OciImageArtifact struct {
@@ -31,8 +30,8 @@ func NewOciImageArtifact(repoRef *artifact.RepositoryRef, pushPlatforms []string
 	return &OciImageArtifact{repoRef: repoRef, pushPlatforms: pushPlatforms, pullPlatform: pullPlatform, path: path}
 }
 
-func (a *OciImageArtifact) Push() error {
-	fmt.Printf("OCI Image Artifact Push\n")
+func (a *OciImageArtifact) Push(ctx context.Context) error {
+	fmt.Printf("OCI Artifact Push\n")
 	fmt.Printf("Packaging folder '%s'...\n", a.path)
 	// Create a tarball of the folder in memory
 	tarballBytes, err := utils.CreateTarGz(a.path)
@@ -40,10 +39,9 @@ func (a *OciImageArtifact) Push() error {
 		return fmt.Errorf("failed to create tarball: %w", err)
 	}
 
-	ctx := context.Background()
-
 	// Create a new registry client with authentication
-	repo, err := artifact.CreateAuthenticatedRepository(ctx, a.repoRef)
+	// repo, err := artifact.CreateAuthenticatedRepository(ctx, a.repoRef)
+	repo, err := a.repoRef.Authenticate(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create repository client: %w", err)
 	}
@@ -58,7 +56,7 @@ func (a *OciImageArtifact) Push() error {
 	if err := repo.Push(ctx, layerDesc, bytes.NewReader(tarballBytes)); err != nil {
 		return fmt.Errorf("failed to push layer blob: %w", err)
 	}
-	fmt.Printf("Pushed layer: %s\n", layerDesc.Digest)
+	utils.VerbosePrintf("Pushed layer: %s\n", layerDesc.Digest)
 
 	var rootDesc ocispec.Descriptor
 
@@ -72,9 +70,15 @@ func (a *OciImageArtifact) Push() error {
 			a.pushPlatforms = append(a.pushPlatforms, currentPlatform)
 		}
 	}
+
+	// Create annotations
+	annotations := map[string]string{
+		"org.opencontainers.image.title":       "artifact-cli artifact",
+		"org.opencontainers.image.description": "Created by artifact-cli",
+	}
 	// --- Multi-Platform (Index) Push ---
-	fmt.Printf("Performing a multi-platform push for: %s\n", a.pushPlatforms)
-	rootDesc, err = pushImageIndex(ctx, repo, layerDesc, a.pushPlatforms)
+	utils.VerbosePrintf("Performing a multi-platform push for: %s\n", a.pushPlatforms)
+	rootDesc, err = PushImageIndex(ctx, repo, layerDesc, a.pushPlatforms, annotations)
 	if err != nil {
 		return err
 	}
@@ -86,19 +90,26 @@ func (a *OciImageArtifact) Push() error {
 	}
 
 	fmt.Printf("\nSuccessfully pushed and tagged artifact: %s\n", a.repoRef.String())
-	fmt.Printf("Root digest: %s\n", rootDesc.Digest)
+	utils.VerbosePrintf("Root digest: %s\n", rootDesc.Digest)
 
 	return nil
 
 }
 
-func (a *OciImageArtifact) Pull() error {
-	ctx := context.Background()
+func (a *OciImageArtifact) Pull(ctx context.Context) error {
+	fmt.Printf("OCI Artifact Pull\n")
 
-	fmt.Printf("OCI Image Artifact Pull\n")
+	// Create a new registry client with authentication
+	// repo, err := artifact.CreateAuthenticatedRepository(ctx, a.repoRef)
+	repo, err := a.repoRef.Authenticate(ctx)
+	if err != nil {
+		return err
+	}
 
-	// Create a registry client with authentication
-	repo, err := artifact.CreateAuthenticatedRepository(ctx, a.repoRef)
+	imageMetadata := artifact.ImageMetadata{
+		ImageRef: a.repoRef.String(),
+	}
+	err = artifact.GetImageMetadata(ctx, repo, &imageMetadata)
 	if err != nil {
 		return err
 	}
@@ -107,13 +118,21 @@ func (a *OciImageArtifact) Pull() error {
 	memStore := memory.New()
 
 	// Define copy options to specify the target platform
-	var targetPlatform ocispec.Platform
-	err = utils.ParsePlatform(&targetPlatform, a.pullPlatform)
-	if err != nil {
-		return fmt.Errorf("failed to parse platform: %w", err)
-	}
+	// If image is multi-platform, we need to pull the image for the target platform
+	// If image is single-platform, we need to pull the image for the current platform
 	copyOpts := oras.DefaultCopyOptions
-	copyOpts.WithTargetPlatform(&targetPlatform)
+	if imageMetadata.MediaType == artifact.OCIMultiPlatform {
+		var targetPlatform ocispec.Platform
+		err = utils.ParsePlatform(&targetPlatform, a.pullPlatform)
+		if err != nil {
+			return fmt.Errorf("failed to parse platform: %w", err)
+		}
+		copyOpts.WithTargetPlatform(&targetPlatform)
+		fmt.Printf("Pulling artifact for platform %s/%s...\n", targetPlatform.OS, targetPlatform.Architecture)
+	} else {
+		currentPlatform := utils.GetOSPlatformStr()
+		fmt.Printf("Pulling artifact for current platform: %s\n", currentPlatform)
+	}
 
 	// Use oras.Copy to pull the artifact
 	pulledDesc, err := oras.Copy(ctx, repo, a.repoRef.String(), memStore, a.repoRef.String(), copyOpts)
@@ -127,55 +146,18 @@ func (a *OciImageArtifact) Pull() error {
 		return err
 	}
 
-	return processPulledArtifact(ctx, memStore, pulledDesc, a.path)
-}
-
-// pullWithFallbackStrategies tries different strategies to pull an artifact when no platform is specified
-func pullWithFallbackStrategies(ctx context.Context, repo *remote.Repository, repoRef string, memStore *memory.Store, outputDir string) error {
-	// Strategy 1: Try to pull an image generated with artifact-cli push (no platform selector)
-	fmt.Println("Strategy 1: Trying to pull artifact-cli generated image (no platform selector)...")
-	pulledDesc, err := oras.Copy(ctx, repo, repoRef, memStore, repoRef, oras.DefaultCopyOptions)
-	if err == nil {
-		// Check if this is actually an artifact-cli artifact
-		if isOciCliArtifact(ctx, memStore, pulledDesc) {
-			fmt.Printf("Successfully pulled artifact-cli artifact: %s\n", pulledDesc.Digest)
-			return processPulledArtifact(ctx, memStore, pulledDesc, outputDir)
-		} else {
-			fmt.Printf("Strategy 1: Found artifact but not artifact-cli generated, trying next strategy...\n")
-		}
-	} else {
-		fmt.Printf("Strategy 1 failed: %v\n", err)
+	err = processPulledArtifact(ctx, memStore, pulledDesc, a.path)
+	if err != nil {
+		return err
 	}
 
-	// Strategy 2: Try to pull an image generated via imgpkg (Docker manifest format)
-	fmt.Println("Strategy 2: Trying to pull imgpkg generated image...")
-	// For imgpkg, we need to handle Docker manifest format
-	// This is more complex and would require custom handling of Docker manifests
-	// For now, we'll skip this and go to strategy 3
-
-	// Strategy 3: Try to pull an image generated with docker buildx using current architecture
-	fmt.Println("Strategy 3: Trying to pull docker buildx image with current platform...")
-	currentPlatform := &ocispec.Platform{
-		OS:           runtime.GOOS,
-		Architecture: runtime.GOARCH,
-	}
-	copyOpts := oras.DefaultCopyOptions
-	copyOpts.WithTargetPlatform(currentPlatform)
-
-	pulledDesc, err = oras.Copy(ctx, repo, repoRef, memStore, repoRef, copyOpts)
-	if err == nil {
-		fmt.Printf("Successfully pulled docker buildx artifact for platform %s/%s: %s\n",
-			currentPlatform.OS, currentPlatform.Architecture, pulledDesc.Digest)
-		return processPulledArtifact(ctx, memStore, pulledDesc, outputDir)
-	}
-	fmt.Printf("Strategy 3 failed: %v\n", err)
-
-	return fmt.Errorf("all pull strategies failed. Last error: %w", err)
+	fmt.Printf("\nSuccessfully pulled and extracted artifact to %s.\n", a.path)
+	return nil
 }
 
 // processPulledArtifact processes the pulled artifact and extracts it to the output directory
 func processPulledArtifact(ctx context.Context, memStore *memory.Store, pulledDesc ocispec.Descriptor, outputDir string) error {
-	fmt.Printf("Processing pulled artifact with digest: %s\n", pulledDesc.Digest)
+	utils.VerbosePrintf("Processing pulled artifact with digest: %s\n", pulledDesc.Digest)
 
 	// Fetch the manifest to find our folder layer
 	manifestBytes, err := content.FetchAll(ctx, memStore, pulledDesc)
@@ -188,12 +170,12 @@ func processPulledArtifact(ctx context.Context, memStore *memory.Store, pulledDe
 		return fmt.Errorf("failed to unmarshal manifest: %w", err)
 	}
 
-	fmt.Printf("Found manifest with media type %s\n", manifest.MediaType)
+	utils.VerbosePrintf("Found manifest with media type %s\n", manifest.MediaType)
 
 	// Check if this is an artifact-cli generated artifact
 	if manifest.Annotations != nil {
 		if tool, exists := manifest.Annotations["dev.educates.artifact-cli.tool"]; exists && tool == "artifact-cli" {
-			fmt.Printf("Detected artifact-cli generated artifact (version: %s)\n", manifest.Annotations["dev.educates.artifact-cli.version"])
+			utils.VerbosePrintf("Detected artifact-cli generated artifact (version: %s)\n", manifest.Annotations["dev.educates.artifact-cli.version"])
 		}
 	}
 
@@ -210,7 +192,7 @@ func processPulledArtifact(ctx context.Context, memStore *memory.Store, pulledDe
 		for _, layer := range manifest.Layers {
 			if layer.MediaType == mediaType {
 				folderLayerDesc = &layer
-				fmt.Printf("Found layer with media type %s: %s\n", mediaType, layer.Digest)
+				utils.VerbosePrintf("Found layer with media type %s: %s\n", mediaType, layer.Digest)
 				break
 			}
 		}
@@ -234,51 +216,142 @@ func processPulledArtifact(ctx context.Context, memStore *memory.Store, pulledDe
 		return fmt.Errorf("failed to extract tarball: %w", err)
 	}
 
-	fmt.Println("\nSuccessfully pulled and extracted artifact.")
+	utils.VerbosePrintln("Successfully pulled and extracted artifact.")
 	return nil
 }
 
-// isOciCliArtifact checks if the pulled descriptor is an artifact-cli generated artifact
-func isOciCliArtifact(ctx context.Context, memStore *memory.Store, desc ocispec.Descriptor) bool {
-	// Fetch the manifest to check annotations
-	manifestBytes, err := content.FetchAll(ctx, memStore, desc)
-	if err != nil {
-		return false
-	}
+// // isOciCliArtifact checks if the pulled descriptor is an artifact-cli generated artifact
+// func isOciCliArtifact(ctx context.Context, memStore *memory.Store, desc ocispec.Descriptor) bool {
+// 	// Fetch the manifest to check annotations
+// 	manifestBytes, err := content.FetchAll(ctx, memStore, desc)
+// 	if err != nil {
+// 		return false
+// 	}
 
-	var manifest ocispec.Manifest
-	if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
-		return false
-	}
+// 	var manifest ocispec.Manifest
+// 	if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
+// 		return false
+// 	}
 
-	// Check for artifact-cli specific annotations
-	if manifest.Annotations != nil {
-		if tool, exists := manifest.Annotations["dev.educates.artifact-cli.tool"]; exists && tool == "artifact-cli" {
-			return true
+// 	// Check for artifact-cli specific annotations
+// 	if manifest.Annotations != nil {
+// 		if tool, exists := manifest.Annotations["dev.educates.artifact-cli.tool"]; exists && tool == "artifact-cli" {
+// 			return true
+// 		}
+// 	}
+
+// 	return false
+// }
+
+// func pushImageIndex(ctx context.Context, repo *remote.Repository, layerDesc ocispec.Descriptor, platforms []string) (ocispec.Descriptor, error) {
+// 	annotations := map[string]string{
+// 		"org.opencontainers.image.title":          "artifact-cli artifact",
+// 		"org.opencontainers.image.description":    "Folder artifact created by artifact-cli",
+// 		"dev.educates.artifact-cli.version":       artifact.ArtifactCliVersion,
+// 		"dev.educates.artifact-cli.tool":          "artifact-cli",
+// 		"dev.educates.artifact-cli.artifact-type": "oci",
+// 	}
+// 	return artifact.PushImageIndex(ctx, repo, layerDesc, platforms, annotations)
+// }
+
+func PushImageIndex(ctx context.Context, repo *remote.Repository, layerDesc ocispec.Descriptor, platforms []string, annotations map[string]string) (ocispec.Descriptor, error) {
+	var manifestDescriptors []ocispec.Descriptor
+
+	utils.VerbosePrintf("Pushing index...\n")
+
+	for _, platformStr := range platforms {
+		var platform ocispec.Platform
+		err := utils.ParsePlatform(&platform, platformStr)
+		if err != nil {
+			return ocispec.Descriptor{}, fmt.Errorf("failed to parse platform: %w", err)
 		}
+
+		utils.VerbosePrintf("Processing platform %s/%s...\n", platform.OS, platform.Architecture)
+
+		manifestDesc, err := PushSingleManifest(ctx, repo, layerDesc, &platform, annotations)
+		if err != nil {
+			return ocispec.Descriptor{}, fmt.Errorf("failed to push manifest for platform %s/%s: %w", platform.OS, platform.Architecture, err)
+		}
+		manifestDescriptors = append(manifestDescriptors, manifestDesc)
 	}
 
-	return false
+	// Create the image index
+	index := ocispec.Index{
+		Versioned: specs.Versioned{
+			SchemaVersion: 2,
+		},
+		MediaType:   artifact.OCIIndexMediaType,
+		Manifests:   manifestDescriptors,
+		Annotations: annotations,
+	}
+
+	indexBytes, err := json.Marshal(index)
+	if err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("failed to marshal index: %w", err)
+	}
+
+	indexDesc := ocispec.Descriptor{
+		MediaType: artifact.OCIIndexMediaType,
+		Digest:    digest.FromBytes(indexBytes),
+		Size:      int64(len(indexBytes)),
+	}
+
+	if err := repo.Push(ctx, indexDesc, bytes.NewReader(indexBytes)); err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("failed to push index: %w", err)
+	}
+	utils.VerbosePrintf("Pushed index: %s\n", indexDesc.Digest)
+
+	return indexDesc, nil
 }
 
-func pushImageIndex(ctx context.Context, repo *remote.Repository, layerDesc ocispec.Descriptor, platforms []string) (ocispec.Descriptor, error) {
-	annotations := map[string]string{
-		"org.opencontainers.image.title":          "artifact-cli artifact",
-		"org.opencontainers.image.description":    "Folder artifact created by artifact-cli",
-		"dev.educates.artifact-cli.version":       artifact.ArtifactCliVersion,
-		"dev.educates.artifact-cli.tool":          "artifact-cli",
-		"dev.educates.artifact-cli.artifact-type": "oci",
+func PushSingleManifest(ctx context.Context, repo *remote.Repository, layerDesc ocispec.Descriptor, platform *ocispec.Platform, annotations map[string]string) (ocispec.Descriptor, error) {
+	// Create and push a minimal config blob
+	configBytes := []byte("{}")
+	configDesc := ocispec.Descriptor{
+		MediaType: artifact.OCIConfigMediaType,
+		Digest:    digest.FromBytes(configBytes),
+		Size:      int64(len(configBytes)),
 	}
-	return artifact.PushImageIndex(ctx, repo, layerDesc, platforms, annotations)
-}
+	if err := repo.Push(ctx, configDesc, bytes.NewReader(configBytes)); err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("failed to push config blob: %w", err)
+	}
+	utils.VerbosePrintf("Pushed config: %s\n", configDesc.Digest)
 
-func pushSingleManifest(ctx context.Context, repo *remote.Repository, layerDesc ocispec.Descriptor, platform *ocispec.Platform) (ocispec.Descriptor, error) {
-	annotations := map[string]string{
-		"org.opencontainers.image.title":          "artifact-cli artifact",
-		"org.opencontainers.image.description":    "Folder artifact created by artifact-cli",
-		"dev.educates.artifact-cli.version":       artifact.ArtifactCliVersion,
-		"dev.educates.artifact-cli.tool":          "artifact-cli",
-		"dev.educates.artifact-cli.artifact-type": "oci",
+	// Create the image manifest
+	manifest := ocispec.Manifest{
+		Versioned: specs.Versioned{
+			SchemaVersion: 2,
+		},
+		Config:      configDesc,
+		Layers:      []ocispec.Descriptor{layerDesc},
+		MediaType:   artifact.OCIManifestMediaType,
+		Annotations: annotations,
 	}
-	return artifact.PushSingleManifest(ctx, repo, layerDesc, platform, annotations)
+	if platform != nil {
+		manifest.Annotations["org.opencontainers.image.platform"] = fmt.Sprintf("%s/%s", platform.OS, platform.Architecture)
+	}
+
+	manifestBytes, err := json.Marshal(manifest)
+	if err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("failed to marshal manifest: %w", err)
+	}
+
+	manifestDesc := ocispec.Descriptor{
+		MediaType: artifact.OCIManifestMediaType,
+		Digest:    digest.FromBytes(manifestBytes),
+		Size:      int64(len(manifestBytes)),
+		Platform:  platform,
+	}
+
+	if err := repo.Push(ctx, manifestDesc, bytes.NewReader(manifestBytes)); err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("failed to push manifest: %w", err)
+	}
+
+	if platform != nil {
+		utils.VerbosePrintf("Pushed manifest for platform %s/%s: %s\n", platform.OS, platform.Architecture, manifestDesc.Digest)
+	} else {
+		utils.VerbosePrintf("Pushed manifest without platform selector: %s\n", manifestDesc.Digest)
+	}
+
+	return manifestDesc, nil
 }

@@ -24,6 +24,7 @@ func main() {
 	rootCmd.AddCommand(cmd.NewPushCmd())
 	rootCmd.AddCommand(cmd.NewPullCmd())
 	rootCmd.AddCommand(cmd.NewSyncCmd())
+	rootCmd.AddCommand(cmd.NewManifestCmd())
 
 	rootCmd.Execute()
 }

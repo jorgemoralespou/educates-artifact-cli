@@ -14,20 +14,51 @@ import (
 func CreateTarGz(srcPath string) ([]byte, error) {
 	var buf bytes.Buffer
 	gzipWriter := gzip.NewWriter(&buf)
+	defer gzipWriter.Close()
 	tarWriter := tar.NewWriter(gzipWriter)
+	defer tarWriter.Close()
 
 	err := filepath.Walk(srcPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		// Create a tar header
-		header, err := tar.FileInfoHeader(info, info.Name())
+		// Handle symlinks by following them to get the actual file
+		var actualInfo os.FileInfo
+		var actualPath string
+		if info.Mode()&os.ModeSymlink != 0 {
+			// This is a symlink, follow it
+			actualPath, err = os.Readlink(path)
+			if err != nil {
+				return fmt.Errorf("failed to read symlink %s: %w", path, err)
+			}
+
+			// If the symlink is relative, resolve it relative to the symlink's directory
+			if !filepath.IsAbs(actualPath) {
+				actualPath = filepath.Join(filepath.Dir(path), actualPath)
+			}
+
+			actualInfo, err = os.Stat(actualPath)
+			if err != nil {
+				return fmt.Errorf("failed to stat symlink target %s: %w", actualPath, err)
+			}
+
+			// Only follow symlinks that point to regular files
+			if actualInfo.IsDir() {
+				return fmt.Errorf("symlink %s points to a directory, which is not supported", path)
+			}
+		} else {
+			actualInfo = info
+			actualPath = path
+		}
+
+		// Create a tar header using the actual file info
+		header, err := tar.FileInfoHeader(actualInfo, actualInfo.Name())
 		if err != nil {
 			return err
 		}
 
-		// Use relative paths in the archive
+		// Use relative paths in the archive (based on original path, not resolved path)
 		relPath, err := filepath.Rel(srcPath, path)
 		if err != nil {
 			return err
@@ -39,8 +70,8 @@ func CreateTarGz(srcPath string) ([]byte, error) {
 		}
 
 		// If it's a regular file, write its content
-		if !info.IsDir() {
-			file, err := os.Open(path)
+		if !actualInfo.IsDir() {
+			file, err := os.Open(actualPath)
 			if err != nil {
 				return err
 			}
@@ -53,13 +84,6 @@ func CreateTarGz(srcPath string) ([]byte, error) {
 	})
 
 	if err != nil {
-		return nil, err
-	}
-
-	if err := tarWriter.Close(); err != nil {
-		return nil, err
-	}
-	if err := gzipWriter.Close(); err != nil {
 		return nil, err
 	}
 

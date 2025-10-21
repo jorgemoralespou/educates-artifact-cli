@@ -6,10 +6,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"educates-artifact-cli/pkg/sync"
+	"educates-artifact-cli/pkg/utils"
 )
 
 type SyncCmdOpts struct {
 	ConfigFile string
+	Timeout    string
 }
 
 // NewSyncCmd creates the 'sync' command
@@ -42,24 +44,47 @@ and which files to include or exclude.`,
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var config sync.SyncConfig
-
-			// Load and parse configuration file
-			if err := sync.LoadSyncConfig(&config, opts.ConfigFile); err != nil {
-				return fmt.Errorf("failed to load configuration: %w", err)
-			}
-
-			// Validate configuration
-			if err := sync.ValidateSyncConfig(&config); err != nil {
-				return fmt.Errorf("invalid configuration: %w", err)
-			}
-
-			return sync.Sync(config)
+			return runSync(opts)
 		},
 	}
 
 	cmd.Flags().StringVarP(&opts.ConfigFile, "config", "c", "", "Path to the configuration YAML file (required)")
+	cmd.Flags().StringVarP(&opts.Timeout, "timeout", "t", "", "Timeout for the operation (e.g., '30s', '5m', '1h'). Defaults to 5m")
 	_ = cmd.MarkFlagRequired("config")
 
 	return cmd
+}
+
+func runSync(opts SyncCmdOpts) error {
+	// Create cancellable context with signal handling
+	ctx, cancel, err := utils.ContextWithSignalHandling(opts.Timeout)
+	if err != nil {
+		return fmt.Errorf("invalid timeout: %w", err)
+	}
+	defer cancel()
+
+	var config sync.SyncConfig
+
+	// Load and parse configuration file
+	if err := sync.LoadSyncConfig(&config, opts.ConfigFile); err != nil {
+		return fmt.Errorf("failed to load configuration: %w", err)
+	}
+
+	// Validate configuration
+	if err := sync.ValidateSyncConfig(&config); err != nil {
+		return fmt.Errorf("invalid configuration: %w", err)
+	}
+
+	err = sync.Sync(ctx, config)
+	if err != nil {
+		// Check if the error was due to user cancellation
+		if utils.IsCancelledByUser(ctx) {
+			// User cancelled the operation, don't return an error
+			return nil
+		}
+		// Return the actual error for other cases
+		return err
+	}
+
+	return nil
 }

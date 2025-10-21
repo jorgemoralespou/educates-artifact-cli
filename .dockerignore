@@ -1,0 +1,74 @@
+# .dockerignore - Exclude unnecessary files from Docker build context
+
+# Build artifacts
+bin/
+dist/
+*.exe
+
+# Development files
+.git/
+.gitignore
+.gitattributes
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Documentation
+README.md
+CHANGELOG.md
+LICENSE
+*.md
+
+# Test files and data
+test/
+test-output/
+*.test
+coverage.out
+
+# CI/CD files
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+
+# Task runner files
+Taskfile.yml
+Taskfile.yaml
+
+# Scripts
+scripts/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+*.iml
+*.ipr
+*.iws
+
+# Go specific
+vendor/
+*.mod.bak
+*.sum.bak
+
+# Docker files
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Release files
+.goreleaser.yml

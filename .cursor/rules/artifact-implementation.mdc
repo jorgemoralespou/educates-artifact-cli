@@ -11,8 +11,8 @@ All artifact types must implement the `artifact.Artifact` interface:
 
 ```go
 type Artifact interface {
-    Push() error
-    Pull() error
+    Push(ctx context.Context) error
+    Pull(ctx context.Context) error
 }
 ```
 

@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  # Local registry for testing
+  registry:
+    image: registry:3
+    ports:
+      - "5000:5000"
+    environment:
+      REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY: /var/lib/registry
+    volumes:
+      - registry-data:/var/lib/registry
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/v2/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # artifact-cli service
+  artifact-cli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      registry:
+        condition: service_healthy
+    volumes:
+      - ./test:/workspace/test:ro
+      - ./test-output:/workspace/output
+    working_dir: /workspace
+    environment:
+      - ARTIFACT_CLI_USERNAME=testuser
+      - ARTIFACT_CLI_PASSWORD=testpass
+    command: ["--help"]
+    profiles:
+      - cli
+
+  # Development version with live reload
+  artifact-cli-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    depends_on:
+      registry:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - ./test:/workspace/test:ro
+      - ./test-output:/workspace/output
+    working_dir: /workspace
+    environment:
+      - ARTIFACT_CLI_USERNAME=testuser
+      - ARTIFACT_CLI_PASSWORD=testpass
+    command: ["go", "run", "cmd/root.go", "--help"]
+    profiles:
+      - dev
+
+volumes:
+  registry-data:
