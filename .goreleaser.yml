@@ -50,7 +50,9 @@ release:
   github:
     owner: jorgemoralespou
     name: educates-artifact-cli
-  draft: false
+  # If set to true, will not auto-publish the release.
+  # We wait so that we don't make the release public until we have notarize email from Apple.
+  draft: true
   prerelease: auto
   mode: replace
   header: |
@@ -70,62 +72,67 @@ changelog:
   sort: asc
   filters:
     exclude:
-      - '^docs:'
-      - '^test:'
-      - '^ci:'
-      - '^build:'
-      - '^chore:'
+      - "^docs:"
+      - "^test:"
+      - "^typo:"
 
-# Milestone configuration
-milestones:
-  - repo: 
-      owner: jorgemoralespou
-      name: educates-artifact-cli
-    close: true
+notarize:
+  macos:
+    - # Whether this configuration is enabled or not.
+      #
+      # Default: false.
+      # Templates: allowed.
+      enabled: '{{ isEnvSet "MACOS_SIGN_P12" }}'
 
-# Metadata
-metadata:
-  mod_timestamp: "{{ .CommitTimestamp }}"
+      # Before notarizing, we need to sign the binary.
+      # This block defines the configuration for doing so.
+      sign:
+        # The .p12 certificate file path or its base64'd contents.
+        #
+        # Templates: allowed.
+        certificate: "{{.Env.MACOS_SIGN_P12}}"
 
-# Announcements
-announce:
-  skip: "{{gt .Patch 0}}"
-  twitter:
-    enabled: false
-  reddit:
-    enabled: false
-  linkedin:
-    enabled: false
-  mastodon:
-    enabled: false
-  slack:
-    enabled: false
-  discord:
-    enabled: false
-  teams:
-    enabled: false
-  smtp:
-    enabled: false
-  telegram:
-    enabled: false
-  mattermost:
-    enabled: false
-  webhook:
-    enabled: false
+        # The password to be used to open the certificate.
+        #
+        # Templates: allowed.
+        password: "{{.Env.MACOS_SIGN_PASSWORD}}"
 
-# Source configuration
-source:
-  enabled: true
-  name_template: "{{ .ProjectName }}_{{ .Version }}_src"
-  format: tar.gz
-  files:
-    - "*.go"
-    - "go.mod"
-    - "go.sum"
-    - "README.md"
-    - "LICENSE*"
-    - "CHANGELOG*"
-    - "docs/**/*"
-    - "specs/**/*"
-    - "Taskfile.yml"
-    - ".goreleaser.yml"
+        # Allows to set the signature entitlements XML file.
+        #
+        # Templates: allowed.
+        # Since: v2.6.
+        entitlements: ./entitlements.xml
+
+      # Then, we notarize the binaries.
+      #
+      # You can leave this section empty if you only want
+      # to sign the binaries (Since: v2.1).
+      notarize:
+        # The issuer ID.
+        # Its the UUID you see when creating the App Store Connect key.
+        #
+        # Templates: allowed.
+        issuer_id: "{{.Env.MACOS_NOTARY_ISSUER_ID}}"
+
+        # Key ID.
+        # You can see it in the list of App Store Connect Keys.
+        # It will also be in the ApiKey filename.
+        #
+        # Templates: allowed.
+        key_id: "{{.Env.MACOS_NOTARY_KEY_ID}}"
+
+        # The .p8 key file path or its base64'd contents.
+        #
+        # Templates: allowed.
+        key: "{{.Env.MACOS_NOTARY_KEY}}"
+
+        # Whether to wait for the notarization to finish.
+        # Not recommended, as it could take a really long time.
+        wait: false
+
+        # Timeout for the notarization.
+        # Beware of the overall `--timeout` time.
+        # This only has any effect if `wait` is true.
+        #
+        # Default: 10m.
+        timeout: 20m
