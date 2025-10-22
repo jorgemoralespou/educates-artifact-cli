@@ -3,6 +3,7 @@
 
 # Project name and version
 project_name: artifact-cli
+version: 2
 
 # Build configuration
 builds:
@@ -37,7 +38,7 @@ archives:
       - LICENSE*
       - CHANGELOG*
       - docs/*
-    format: tar.gz
+    formats: tar.gz
 
 # Checksums
 checksum:
@@ -77,21 +78,10 @@ changelog:
 
 # Milestone configuration
 milestones:
-  - repo: jorgemoralespou/educates-artifact-cli
+  - repo: 
+      owner: jorgemoralespou
+      name: educates-artifact-cli
     close: true
-
-# Before hooks
-before:
-  hooks:
-    - go mod tidy
-    - go mod verify
-    - go vet ./...
-    - go test ./...
-
-# After hooks
-after:
-  hooks:
-    - echo "Release {{ .Version }} completed successfully!"
 
 # Metadata
 metadata:
@@ -120,33 +110,8 @@ announce:
     enabled: false
   mattermost:
     enabled: false
-  rocketchat:
-    enabled: false
-  matrix:
-    enabled: false
-  googlechat:
-    enabled: false
   webhook:
     enabled: false
-
-# Blobs (for additional files)
-blobs:
-  - provider: github
-    ids:
-      - artifact-cli
-    folder: "{{ .ProjectName }}_{{ .Version }}"
-    globs:
-      - "*.tar.gz"
-      - "*.zip"
-      - "*.deb"
-      - "*.rpm"
-      - "*.snap"
-
-# Universal binaries (for Apple Silicon)
-universal_binaries:
-  - replace: true
-    goos:
-      - darwin
 
 # Source configuration
 source:
